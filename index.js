@@ -141,7 +141,7 @@ async function connectToWhatsApp() {
 
       let groupName = null;
       if (msg.key.remoteJid.endsWith('@g.us')) {
-        try { groupName = (await sock.groupMetadata(msg.key.remoteJid)).subject; } catch {}
+        try { groupName = (await sock.groupMetadata(msg.key.remoteJid)).subject; } catch { }
       }
 
       printChatLog(msg, { groupName });
@@ -157,7 +157,6 @@ async function connectToWhatsApp() {
       }
 
       if (!isRegistered(sid) && commandName !== 'daftar') {
-        log.warn(`Pesan diabaikan dari user tidak terdaftar: ${sid}`);
         continue;
       }
 
