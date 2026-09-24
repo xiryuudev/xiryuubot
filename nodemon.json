@@ -1,0 +1,9 @@
+{
+  "watch": ["index.js", "commands/", "utils/"],
+  "ignore": [
+    "auth_info_baileys/*",
+    "node_modules/*",
+    "db/*"
+  ],
+  "ext": "js,mjs,json"
+}

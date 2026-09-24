@@ -115,6 +115,7 @@ dist
 
 # DynamoDB Local files
 .dynamodb/
+db/
 
 # Firebase cache directory
 .firebase/
@@ -141,3 +142,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+.npmrc
+
+auth_info_baileys/
