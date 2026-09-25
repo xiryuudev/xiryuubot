@@ -17,7 +17,7 @@ WhatsApp Bot multiguna berbasis Node.js menggunakan `@whiskeysockets/baileys` ya
 - **AI Assistant with Tools (`.ai`)**:
   - Terintegrasi dengan Groq API (`openai/gpt-oss-120b`).
   - Mendukung **Web Search** (DuckDuckGo) & **Code Execution** (Sandbox Node.js).
-  - Sistem history percakapan per user (max 10 pasang pesan dengan auto-summarization).
+  - Sistem history percakapan per user (max 3 pasang pesan dengan auto-summarization).
   - Reset sesi history via `.ai newsession`.
 - **Global Config & Logging**:
   - Konfigurasi terpusat via `.env` dan `config.js`.
