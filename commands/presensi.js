@@ -10,6 +10,14 @@ const UA = 'Mozilla/5.0';
 const isDone = (j) => j.status_presensi === '1' || j.id_absensi_mahasiswa;
 const label = (s) => (s ? String(s).split(':')[0] : '-');
 
+// Cek apakah status pertemuan sedang berlangsung
+const isBerlangsung = (j) => {
+  const status = String(j.status_pertemuan || '').toLowerCase();
+  if (!status) return false;
+  if (status.includes('belum') || status.includes('selesai')) return false;
+  return status.includes('berlangsung') || status.includes('jalan') || status.includes('aktif') || status.includes('buka') || status.includes('mulai');
+};
+
 async function csrfPresensi(sessionHash, cookie) {
   const { data: html } = await axios.get(`${BASE_URL}/${sessionHash}/dashboard/perkuliahan/presensi`, {
     headers: { Cookie: cookie, 'User-Agent': UA }
@@ -21,7 +29,7 @@ async function csrfPresensi(sessionHash, cookie) {
 
 export default {
   name: 'presensi',
-  description: 'Presensi kuliah (presensi | presensi <id_pertemuan> <kode>)',
+  description: 'Presensi kuliah (presensi | presensi <kode> | presensi <id> <kode>)',
   type: 'main',
   async run({ sock, msg, args, prefix }) {
     const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Memproses...' }, { quoted: msg });
@@ -43,26 +51,41 @@ export default {
           text += `ID: ${j.id_pertemuan_presensi} | ${j.jam_awal.slice(0, 5)}-${j.jam_akhir.slice(0, 5)}\n`;
           text += `Status: ${isDone(j) ? 'Sudah' : 'Belum'} | ${label(j.status_pertemuan)}\n\n`;
         }
-        text += `Kirim: ${prefix}presensi <id> <kode>`;
+        text += `Kirim: ${prefix}presensi <kode>`;
         return editOrSend(sock, msg, loadingMsg, text.trimEnd());
       }
 
       let idPertemuan;
       let kode;
+
       if (args.length === 1) {
         [kode] = args;
-        const kandidat = today.filter((j) => !isDone(j));
+        const kandidat = today.filter((j) => !isDone(j) && isBerlangsung(j));
+
+        if (kandidat.length === 0) {
+          let text = 'Tidak ada sesi sedang berlangsung hari ini.\n';
+          const belum = today.filter((j) => !isDone(j));
+          if (belum.length) {
+            text += 'Belum presensi:\n';
+            for (const j of belum) text += `- ${j.nama_matakuliah} (ID: ${j.id_pertemuan_presensi}) [${label(j.status_pertemuan)}]\n`;
+            text += `\nGunakan: ${prefix}presensi <id> <kode> jika perlu`;
+          }
+          return editOrSend(sock, msg, loadingMsg, text.trimEnd());
+        }
+
         if (kandidat.length !== 1) {
-          let text = `Kandidat hari ini (${kandidat.length}):\n`;
-          for (const j of kandidat) text += `- ${j.nama_matakuliah} ID: ${j.id_pertemuan_presensi}\n`;
-          return editOrSend(sock, msg, loadingMsg, `${text}Kirim: ${prefix}presensi <id> <kode>`.trimEnd());
+          let text = `Ada ${kandidat.length} sesi sedang berlangsung:\n`;
+          for (const j of kandidat) {
+            text += `- ${j.nama_matakuliah} (ID: ${j.id_pertemuan_presensi}) [${label(j.status_pertemuan)}]\n`;
+          }
+          return editOrSend(sock, msg, loadingMsg, `${text}\nGunakan: ${prefix}presensi <id> <kode>`.trimEnd());
         }
         idPertemuan = kandidat[0].id_pertemuan_presensi;
       } else {
         [idPertemuan, kode] = args;
       }
 
-      if (!idPertemuan || !kode) return editOrSend(sock, msg, loadingMsg, `Format: ${prefix}presensi <id_pertemuan> <kode>`);
+      if (!idPertemuan || !kode) return editOrSend(sock, msg, loadingMsg, `Format: ${prefix}presensi <kode> atau ${prefix}presensi <id_pertemuan> <kode>`);
 
       const target = all.find((j) => String(j.id_pertemuan_presensi) === String(idPertemuan));
       if (target && isDone(target)) {

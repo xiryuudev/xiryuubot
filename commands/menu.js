@@ -1,3 +1,4 @@
+import config from '../config.js';
 import { senderNumber } from '../utils/sender.js';
 import { loadUsers } from '../utils/users.js';
 import { formatNow } from '../utils/date.js';
@@ -32,6 +33,9 @@ export default {
     text += `│ Status: ${isAdmin ? 'Admin' : 'Member'}\n`;
     text += `╰──────────⊱\n`;
     text += `╭──❲ INFO BOT ❳\n`;
+    text += `│ Nama Bot: ${config.BOT_NAME}\n`;
+    text += `│ Author: ${config.ADMIN_NAME} (${config.AUTHOR_NUMBER})\n`;
+    text += `│ Contact Admin: ${config.ADMIN_NUMBER}\n`;
     text += `│ Prefix: ${prefix}\n`;
     text += `│ Waktu: ${formatNow()} WIB\n`;
     text += `╰──────────⊱\n`;

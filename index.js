@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import util from 'util';
@@ -7,8 +8,9 @@ import { pathToFileURL } from 'url';
 import { isRegistered } from './utils/users.js';
 import { senderJid } from './utils/sender.js';
 import { formatChatTime } from './utils/date.js';
+import config from './config.js';
 
-const PHONE_NUMBER = '62895622331910';
+const PHONE_NUMBER = config.BOT_NUMBER;
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
 

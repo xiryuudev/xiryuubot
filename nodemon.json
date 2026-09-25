@@ -1,9 +1,14 @@
 {
-  "watch": ["index.js", "commands/", "utils/"],
+  "watch": [
+    "index.js",
+    "commands/",
+    "utils/"
+  ],
   "ignore": [
     "auth_info_baileys/*",
     "node_modules/*",
-    "db/*"
+    "db/*",
+    "setup.sh"
   ],
   "ext": "js,mjs,json"
 }
