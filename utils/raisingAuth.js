@@ -2,10 +2,11 @@ import axios from 'axios';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import config from '../config.js';
 
-const BASE_URL = 'https://raising.almaata.ac.id';
+const BASE_URL = config.RAISING_BASE_URL;
 const STORAGE_FILE = path.resolve('db/raising_users.json');
-const UA = 'Mozilla/5.0';
+const UA = config.UA;
 
 const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 

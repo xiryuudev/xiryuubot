@@ -1,6 +1,6 @@
 import config from '../config.js';
 import { senderNumber } from '../utils/sender.js';
-import { loadUsers } from '../utils/users.js';
+import { isAdmin } from '../utils/users.js';
 import { formatNow } from '../utils/date.js';
 
 export default {
@@ -8,8 +8,7 @@ export default {
   description: 'Menampilkan daftar command bot',
   type: 'main',
   run: async ({ sock, msg, commandList, prefix }) => {
-    const adminId = loadUsers()[0] ?? '';
-    const isAdmin = senderNumber(msg) === adminId;
+    const isSenderAdmin = isAdmin(senderNumber(msg));
 
     const byType = (type) =>
       Object.entries(commandList)
@@ -30,7 +29,7 @@ export default {
 
     let text = `╭──❲ INFO PENGGUNA ❳\n`;
     text += `│ Nama: ${msg.pushName || '-'}\n`;
-    text += `│ Status: ${isAdmin ? 'Admin' : 'Member'}\n`;
+    text += `│ Status: ${isSenderAdmin ? 'Admin' : 'Member'}\n`;
     text += `╰──────────⊱\n`;
     text += `╭──❲ INFO BOT ❳\n`;
     text += `│ Nama Bot: ${config.BOT_NAME}\n`;
@@ -40,7 +39,7 @@ export default {
     text += `│ Waktu: ${formatNow()} WIB\n`;
     text += `╰──────────⊱\n`;
     text += section('MAIN MENU', main);
-    if (isAdmin && admin.length) text += section('ADMIN MENU', admin);
+    if (isSenderAdmin && admin.length) text += section('ADMIN MENU', admin);
 
     await sock.sendMessage(msg.key.remoteJid, { text: text.trimEnd() }, { quoted: msg });
   }

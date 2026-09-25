@@ -3,8 +3,9 @@ import { getValidSession } from '../utils/raisingAuth.js';
 import { senderNumber } from '../utils/sender.js';
 import { dayName, tanggalIndo, keyOfDate, filterByDate } from '../utils/date.js';
 import { editOrSend } from '../utils/reply.js';
+import config from '../config.js';
 
-const BASE_URL = 'https://raising.almaata.ac.id';
+const BASE_URL = config.RAISING_BASE_URL;
 
 function filterByDayName(list, target) {
   if (!target) return list;

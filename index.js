@@ -10,7 +10,6 @@ import { senderJid } from './utils/sender.js';
 import { formatChatTime } from './utils/date.js';
 import config from './config.js';
 
-const PHONE_NUMBER = config.BOT_NUMBER;
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
 
@@ -111,8 +110,8 @@ async function connectToWhatsApp() {
   if (!sock.authState.creds.registered) {
     setTimeout(async () => {
       try {
-        const code = await sock.requestPairingCode(PHONE_NUMBER);
-        log.ok(`Pairing code untuk ${PHONE_NUMBER}: ${code}`);
+        const code = await sock.requestPairingCode(config.BOT_NUMBER);
+        log.ok(`Pairing code untuk ${config.BOT_NUMBER}: ${code}`);
         log.info('Buka WhatsApp > Perangkat Tertaut > Tautkan dengan nomor telepon > Masukkan code ini');
       } catch (err) {
         log.error('Gagal minta pairing code:', err);

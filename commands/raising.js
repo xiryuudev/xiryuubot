@@ -1,9 +1,8 @@
 import { loadRaisingUsers, saveRaisingUsers, loginAndGetSession } from '../utils/raisingAuth.js';
 import { senderNumber } from '../utils/sender.js';
-import { isAdmin } from '../utils/users.js';
+import { isAdmin, clean } from '../utils/users.js';
 import { editOrSend } from '../utils/reply.js';
 
-const cleanNo = (v) => String(v ?? '').replace(/[^0-9]/g, '');
 const fmtDate = (iso) => new Date(iso).toLocaleString('id-ID');
 
 export default {
@@ -35,7 +34,7 @@ export default {
         await sock.sendMessage(msg.key.remoteJid, { text: `Format: ${prefix}raising add <no_wa> <nim> <password>` }, { quoted: msg });
         return;
       }
-      const num = cleanNo(noWa);
+      const num = clean(noWa);
       const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: `Mencoba login untuk NIM ${nim}...` }, { quoted: msg });
       try {
         const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
@@ -70,7 +69,7 @@ export default {
         await sock.sendMessage(msg.key.remoteJid, { text: `Format: ${prefix}raising edit <no_wa> <nim_baru> <password_baru>` }, { quoted: msg });
         return;
       }
-      const num = cleanNo(noWa);
+      const num = clean(noWa);
       if (!users[num]) {
         await sock.sendMessage(msg.key.remoteJid, { text: `User ${num} tidak ditemukan.` }, { quoted: msg });
         return;
@@ -88,7 +87,7 @@ export default {
     }
 
     if (sub === 'delete' || sub === 'del' || sub === 'remove') {
-      const num = cleanNo(args[1]);
+      const num = clean(args[1]);
       if (!num) {
         await sock.sendMessage(msg.key.remoteJid, { text: `Format: ${prefix}raising delete <no_wa>` }, { quoted: msg });
         return;

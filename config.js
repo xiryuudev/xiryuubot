@@ -9,4 +9,6 @@ export default {
   AI_BASE_URL: process.env.AI_BASE_URL || 'http://localhost:20128/v1',
   AI_API_KEY: process.env.AI_API_KEY || '',
   AI_MODEL: process.env.AI_MODEL || 'test',
+  RAISING_BASE_URL: process.env.RAISING_BASE_URL || 'https://raising.almaata.ac.id',
+  UA: process.env.UA || 'Mozilla/5.0',
 };

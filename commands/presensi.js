@@ -3,14 +3,14 @@ import { getValidSession } from '../utils/raisingAuth.js';
 import { senderNumber } from '../utils/sender.js';
 import { filterByDate } from '../utils/date.js';
 import { editOrSend } from '../utils/reply.js';
+import config from '../config.js';
 
-const BASE_URL = 'https://raising.almaata.ac.id';
-const UA = 'Mozilla/5.0';
+const BASE_URL = config.RAISING_BASE_URL;
+const UA = config.UA;
 
 const isDone = (j) => j.status_presensi === '1' || j.id_absensi_mahasiswa;
 const label = (s) => (s ? String(s).split(':')[0] : '-');
 
-// Cek apakah status pertemuan sedang berlangsung
 const isBerlangsung = (j) => {
   const status = String(j.status_pertemuan || '').toLowerCase();
   if (!status) return false;

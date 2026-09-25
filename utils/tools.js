@@ -3,7 +3,16 @@ import { execFile } from 'child_process';
 const SEARCH_URL = 'https://html.duckduckgo.com/html/';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
 
-const stripTags = (s) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
+const stripTags = (s) =>
+  s
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 export async function webSearch(query) {
   const res = await fetch(SEARCH_URL, {

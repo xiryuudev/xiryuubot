@@ -15,7 +15,6 @@ export default {
     const rawArg = args[0]?.trim();
     const isSenderAdmin = isAdmin(sender);
 
-    // Kasus 1: User/admin kirim tanpa argumen -> daftar diri sendiri
     if (!rawArg) {
       const users = loadUsers();
       if (users.includes(sender)) {
@@ -27,13 +26,11 @@ export default {
       return;
     }
 
-    // Kasus 2: Ada argumen, tapi pengirim bukan admin
     if (!isSenderAdmin) {
       await sock.sendMessage(msg.key.remoteJid, { text: `Format salah.\nKetik *${prefix}daftar* untuk mendaftarkan nomor Anda.` }, { quoted: msg });
       return;
     }
 
-    // Kasus 3: Admin kirim argumen, validasi apakah format nomor benar (hanya angka, 8-15 digit)
     const targetNum = rawArg.replace(/[^0-9]/g, '');
     if (targetNum !== rawArg || targetNum.length < 8 || targetNum.length > 15) {
       await sock.sendMessage(msg.key.remoteJid, { text: `Format nomor salah.\nGunakan: *${prefix}daftar <nomor_valid>* (contoh: ${prefix}daftar 628123456789)` }, { quoted: msg });

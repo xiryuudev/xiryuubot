@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const FILE = path.resolve('db/users.json');
-const clean = (v) => String(v ?? '').replace(/[^0-9]/g, '');
+export const clean = (v) => String(v ?? '').replace(/[^0-9]/g, '');
 
 let cache = null;
 let cacheMtime = 0;
