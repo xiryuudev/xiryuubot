@@ -24,24 +24,24 @@ export default {
       return;
     }
 
-    const section = (title, items) => {
-      let t = `╭──❲ ${title} ❳\n`;
-      for (const item of items) {
-        t += `│ ${item.line}\n`;
-      }
-      return `${t}╰──────────⊱\n`;
-    };
-
     const lines = users.map((num, i) => {
-      const hasRaising = raising[num] ? true : false;
-      const raisingInfo = hasRaising ? ` NIM: ${raising[num].nim} (ID: ${raising[num].idMahasiswa || '-'})` : '';
+      const u = raising[num];
+      const hasRaising = Boolean(u);
+      const name = u?.profile?.nama ? ` (${u.profile.nama})` : '';
+      const nim = u?.nim ? ` [NIM: ${u.nim}]` : '';
       const status = hasRaising ? CHECK : CROSS;
-      return `${i + 1}. ${num}${raisingInfo} ${status}`;
+      return `${i + 1}. ${num}${name}${nim} ${status}`;
     });
 
-    let text = section('DAFTAR USER', lines);
-    text += `\nTotal: ${users.length} user${lines.filter(l => l.includes(CHECK)).length ? ` | RAISING: ${lines.filter(l => l.includes(CHECK)).length}` : ''}`;
+    let t = `╭──❲ DAFTAR USER ❳\n`;
+    for (const line of lines) {
+      t += `│ ${line}\n`;
+    }
+    t += `╰──────────⊱\n`;
 
-    await sock.sendMessage(msg.key.remoteJid, { text: text.trimEnd() }, { quoted: msg });
+    const totalRaising = users.filter((num) => raising[num]).length;
+    t += `Total: ${users.length} user | RAISING: ${totalRaising}`;
+
+    await sock.sendMessage(msg.key.remoteJid, { text: t }, { quoted: msg });
   }
 };
