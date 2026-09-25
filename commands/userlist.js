@@ -1,5 +1,5 @@
 import { loadUsers } from '../utils/users.js';
-import { loadRaisingUsers } from '../utils/raisingAuth.js';
+import { loadRaisingUsers, getValidSession } from '../utils/raisingAuth.js';
 import { isAdmin } from '../utils/users.js';
 import { senderNumber } from '../utils/sender.js';
 
@@ -24,23 +24,31 @@ export default {
       return;
     }
 
-    const lines = users.map((num, i) => {
+    const lines = [];
+    for (let i = 0; i < users.length; i++) {
+      const num = users[i];
       const u = raising[num];
-      const hasRaising = Boolean(u);
-      const name = u?.profile?.nama ? ` (${u.profile.nama})` : '';
-      const nim = u?.nim ? ` [NIM: ${u.nim}]` : '';
-      const status = hasRaising ? CHECK : CROSS;
-      return `${i + 1}. ${num}${name}${nim} ${status}`;
-    });
+      let profileName = '';
+      let nim = '';
+
+      if (u) {
+        nim = u.nim ? ` [NIM: ${u.nim}]` : '';
+        try {
+          const session = await getValidSession(num);
+          profileName = session.profile?.nama || '';
+        } catch {}
+      }
+
+      const status = u ? CHECK : CROSS;
+      lines.push(`${i + 1}. ${num}${profileName ? ` (${profileName})` : ''}${nim} ${status}`);
+    }
 
     let t = `╭──❲ DAFTAR USER ❳\n`;
     for (const line of lines) {
       t += `│ ${line}\n`;
     }
     t += `╰──────────⊱\n`;
-
-    const totalRaising = users.filter((num) => raising[num]).length;
-    t += `Total: ${users.length} user | RAISING: ${totalRaising}`;
+    t += `Total: ${users.length} user | RAISING: ${lines.filter((l) => l.includes(CHECK)).length}`;
 
     await sock.sendMessage(msg.key.remoteJid, { text: t }, { quoted: msg });
   }
