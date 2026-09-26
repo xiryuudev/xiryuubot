@@ -6,12 +6,14 @@ import fs from 'fs';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { isRegistered } from './utils/users.js';
-import { senderJid } from './utils/sender.js';
+import { senderJid, senderNumber } from './utils/sender.js';
 import { formatChatTime } from './utils/date.js';
 import config from './config.js';
+import { addTaskFromReport } from './utils/tasks.js';
 
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
+const ADMIN_NUMBER_CLEAN = String(config.ADMIN_NUMBER).replace(/[^0-9]/g, '');
 
 const pinoLogger = pino({
   level: 'info',
@@ -155,6 +157,20 @@ async function connectToWhatsApp() {
       if (typeof text === 'string' && usedPrefix) {
         args = text.slice(usedPrefix.length).trim().split(/ +/);
         commandName = args.shift()?.toLowerCase();
+      }
+
+      const senderNum = senderNumber(msg);
+      const isAdminPrivate = senderNum === ADMIN_NUMBER_CLEAN;
+      const isMaterialGroup = groupName && /penyimpanan\s+materi|materi\s+storage/i.test(groupName);
+
+      if ((isAdminPrivate || isMaterialGroup) && typeof text === 'string') {
+        const isDoc = getMessageInfo(msg.message).type === 'dokumen';
+        const task = addTaskFromReport(text, isDoc);
+        if (task) {
+          const confirmationText = `✅ *Tugas tercatat!*\n📚 ${task.course}\n📌 ${task.title}\n⏰ Deadline: ${task.deadline}${task.link ? `\n🔗 ${task.link}` : ''}`;
+          await sock.sendMessage(msg.key.remoteJid, { text: confirmationText }, { quoted: msg });
+          continue;
+        }
       }
 
       if (!isRegistered(sid) && commandName !== 'daftar') {
