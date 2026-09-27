@@ -58,6 +58,12 @@ export default {
     const arg = args[0]?.toLowerCase();
     const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Mengambil jadwal...' }, { quoted: msg });
 
+    if (args[0]?.toLowerCase() === 'help') {
+      const helpText = `🗓️ *Command: jadwal*\nFungsi: Menampilkan jadwal kuliah RAISING.\nCara pakai:\n- \`jadwal\` — Lihat jadwal hari ini\n- \`jadwal besok\` — Lihat jadwal besok\n- \`jadwal <hari>\` — Lihat jadwal hari tertentu (contoh: \`jadwal senin\`)\n- \`jadwal full\` — Lihat semua jadwal`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
+
     try {
       const user = await getValidSession(senderNumber(msg));
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {

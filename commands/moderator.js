@@ -16,14 +16,9 @@ export default {
     const sub = args[0]?.toLowerCase();
     const mods = loadModerators();
 
-    const help = `Moderator Management (Author Only)\n\n` +
-      `- ${prefix}moderator add <nomor_wa> <kode_prodi> <nama> <group_id>\n` +
-      `- ${prefix}moderator list\n` +
-      `- ${prefix}moderator delete <nomor_wa>\n` +
-      `- ${prefix}moderator setdefault <nomor_wa> <kode_prodi>`;
-
-    if (!sub || sub === 'help') {
-      await sock.sendMessage(msg.key.remoteJid, { text: help }, { quoted: msg });
+    if (sub === 'help') {
+      const helpText = `⚙️ *Command: moderator*\nFungsi: Kelola data moderator (hanya untuk author).\nCara pakai:\n- \`${prefix}moderator add <nomor_wa> <kode_prodi> <nama> <group_id>\` — Tambah moderator baru\n- \`${prefix}moderator list\` — Lihat daftar moderator\n- \`${prefix}moderator delete <nomor_wa>\` — Hapus moderator\n- \`${prefix}moderator setdefault <nomor_wa> <kode_prodi>\` — Set default prodi untuk author (prodi ALL)`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
       return;
     }
 

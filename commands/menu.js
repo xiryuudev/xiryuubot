@@ -9,8 +9,13 @@ export default {
   description: 'Menampilkan daftar command bot',
   type: 'main',
   visibility: 'global',
-  run: async ({ sock, msg, commandList, prefix }) => {
+  run: async ({ sock, msg, commandList, prefix, args }) => {
     const sender = senderNumber(msg);
+    if (args?.[0]?.toLowerCase() === 'help') {
+      let helpText = `📋 *Command: ${prefix}menu*\nFungsi: Menampilkan daftar seluruh command bot yang bisa Anda akses.\nCara pakai:\n- \`${prefix}menu\` — Tampilkan daftar menu sesuai role/status Anda.`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
     const isAuthorUser = isAuthor(sender);
     const isModeratorUser = isModerator(sender);
     const isMahasiswa = loadRaisingUsers()[sender] ? true : false;

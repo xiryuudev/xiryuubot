@@ -32,6 +32,11 @@ export default {
   visibility: 'global',
   async run({ sock, msg, args, prefix }) {
     const sender = senderNumber(msg);
+    if (args?.[0]?.toLowerCase() === 'help') {
+      let helpText = `🤖 *Command: ${prefix}ai*\nFungsi: Berinteraksi dengan AI Assistant yang dilengkapi kemampuan Web Search dan Code Execution.\nCara pakai:\n- \`${prefix}ai <pesan>\` — Mengirim pertanyaan atau chat dengan AI\n- \`${prefix}ai newsession\` — Menghapus history sesi percakapan saat ini dan mulai dari nol`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
     if (!sender) return editOrSend(sock, msg, null, 'Gagal mendeteksi nomor WhatsApp Anda.');
 
     if (args[0]?.toLowerCase() === 'newsession') {

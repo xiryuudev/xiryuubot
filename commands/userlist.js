@@ -11,7 +11,13 @@ export default {
   description: 'Lihat daftar user terdaftar & status RAISING (admin)',
   type: 'moderator',
   visibility: 'moderator',
-  async run({ sock, msg, prefix }) {
+  async run({ sock, msg, prefix, args }) {
+    if (args?.[0]?.toLowerCase() === 'help') {
+      const helpText = `👥 *Command: userlist*\nFungsi: Melihat daftar user terdaftar beserta status akun RAISING mereka.\nCara pakai:\n- \`${prefix}userlist\` — Tampilkan daftar user`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
+
     if (!isModerator(senderNumber(msg))) {
       await sock.sendMessage(msg.key.remoteJid, { text: 'Command ini hanya untuk admin/moderator.' }, { quoted: msg });
       return;

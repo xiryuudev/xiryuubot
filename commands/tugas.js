@@ -29,6 +29,11 @@ export default {
   visibility: 'moderator',
   async run({ sock, msg, args }) {
     const sender = senderNumber(msg);
+    if (args[0]?.toLowerCase() === 'help') {
+      const helpText = `📋 *Command: tugas*\nFungsi: Melihat dan menghapus tugas berdasarkan prodi.\nCara pakai:\n- \`tugas\` — Lihat semua tugas prodi Anda (moderator) atau prodi default (author)\n- \`tugas <kode_prodi>\` — (Author) Lihat tugas prodi tertentu\n- \`tugas delete <id>\` — Hapus tugas berdasarkan ID`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
     let tasks = loadTasks();
 
     const isDeleteAction = args[0]?.toLowerCase() === 'delete';

@@ -8,6 +8,11 @@ export default {
   type: 'main',
   async run({ sock, msg, args, prefix }) {
     const sender = senderNumber(msg);
+    if (args?.[0]?.toLowerCase() === 'help') {
+      let helpText = `📝 *Command: ${prefix}daftar*\nFungsi: Mendaftarkan nomor WhatsApp ke whitelist bot agar bisa menggunakan fitur bot.\nCara pakai:\n- \`${prefix}daftar\` — Daftar nomor WhatsApp Anda sendiri\n- \`${prefix}daftar <nomor>\` — (Admin/Moderator) Daftarkan nomor WhatsApp user lain`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
     if (!sender) {
       await sock.sendMessage(msg.key.remoteJid, { text: 'Gagal mendeteksi nomor WhatsApp Anda.' }, { quoted: msg });
       return;

@@ -17,6 +17,12 @@ export default {
       return;
     }
 
+    if (args[0]?.toLowerCase() === 'help') {
+      const helpText = `🎓 *Command: ${prefix}raising*\nFungsi: Manajemen akun RAISING (Author only).\nCara pakai:\n- \`${prefix}raising add <nim> <password>\` — Tambah akun RAISING\n- \`${prefix}raising list\` — Lihat daftar akun RAISING\n- \`${prefix}raising edit <nim> <password>\` — Edit password akun\n- \`${prefix}raising delete <nim>\` — Hapus akun RAISING`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
+
     const sub = args[0]?.toLowerCase();
     const users = loadRaisingUsers();
     const help = `RAISING Management\n\n` +

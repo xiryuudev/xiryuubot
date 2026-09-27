@@ -35,6 +35,12 @@ export default {
   async run({ sock, msg, args, prefix }) {
     const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Memproses...' }, { quoted: msg });
 
+    if (args[0]?.toLowerCase() === 'help') {
+      const helpText = `✅ *Command: presensi*\nFungsi: Melakukan presensi pada jadwal kuliah RAISING yang sedang berlangsung.\nCara pakai:\n- \`presensi\` — Lihat daftar jadwal hari ini dengan status presensi\n- \`presensi <kode>\` — Submit presensi untuk sesi hari ini (otomatis mendeteksi sesi yang dibuka)\n- \`presensi <id_pertemuan> <kode>\` — Submit presensi untuk pertemuan tertentu`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      return;
+    }
+
     try {
       const user = await getValidSession(senderNumber(msg));
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
