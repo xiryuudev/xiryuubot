@@ -103,11 +103,12 @@ export function parseReport(text) {
   };
 }
 
-export function addTaskFromReport(text, hasDoc = false) {
+export function addTaskFromReport(text, hasDoc = false, prodi = null) {
   const parsed = parseReport(text);
   if (!parsed || !parsed.hasTask) return null;
 
   parsed.hasDocument = hasDoc;
+  if (prodi) parsed.prodi = prodi;
   const tasks = loadTasks();
 
   const existingIndex = tasks.findIndex(

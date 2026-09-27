@@ -1,6 +1,6 @@
 import { loadUsers } from '../utils/users.js';
 import { loadRaisingUsers, getValidSession } from '../utils/raisingAuth.js';
-import { isAdmin } from '../utils/users.js';
+import { isModerator } from '../utils/moderators.js';
 import { senderNumber } from '../utils/sender.js';
 
 const CHECK = '✅';
@@ -9,10 +9,11 @@ const CROSS = '❌';
 export default {
   name: 'userlist',
   description: 'Lihat daftar user terdaftar & status RAISING (admin)',
-  type: 'admin',
+  type: 'moderator',
+  visibility: 'moderator',
   async run({ sock, msg, prefix }) {
-    if (!isAdmin(senderNumber(msg))) {
-      await sock.sendMessage(msg.key.remoteJid, { text: 'Command ini hanya untuk admin.' }, { quoted: msg });
+    if (!isModerator(senderNumber(msg))) {
+      await sock.sendMessage(msg.key.remoteJid, { text: 'Command ini hanya untuk admin/moderator.' }, { quoted: msg });
       return;
     }
 

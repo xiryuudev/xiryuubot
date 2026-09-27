@@ -53,6 +53,7 @@ export default {
   name: 'jadwal',
   description: 'Lihat jadwal kuliah (jadwal | jadwal besok | jadwal <hari> | jadwal full)',
   type: 'main',
+  visibility: 'mahasiswa',
   async run({ sock, msg, args }) {
     const arg = args[0]?.toLowerCase();
     const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Mengambil jadwal...' }, { quoted: msg });

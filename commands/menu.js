@@ -1,22 +1,29 @@
 import config from '../config.js';
 import { senderNumber } from '../utils/sender.js';
-import { isAdmin } from '../utils/users.js';
+import { isModerator, isAuthor, getModeratorDefaultProdi } from '../utils/moderators.js';
+import { loadRaisingUsers } from '../utils/raisingAuth.js';
 import { formatNow } from '../utils/date.js';
 
 export default {
   name: 'menu',
   description: 'Menampilkan daftar command bot',
   type: 'main',
+  visibility: 'global',
   run: async ({ sock, msg, commandList, prefix }) => {
-    const isSenderAdmin = isAdmin(senderNumber(msg));
+    const sender = senderNumber(msg);
+    const isAuthorUser = isAuthor(sender);
+    const isModeratorUser = isModerator(sender);
+    const isMahasiswa = loadRaisingUsers()[sender] ? true : false;
 
-    const byType = (type) =>
+    const byType = (type, visibility) =>
       Object.entries(commandList)
-        .filter(([, c]) => (c.type ?? 'main') === type)
+        .filter(([, c]) => (c.type ?? 'main') === type && (!c.hasOwnProperty('visibility') || c.visibility === visibility))
         .map(([name, c]) => ({ name, desc: c.description || '' }));
 
-    const main = byType('main');
-    const admin = byType('admin');
+    const globalMenu = byType('main', 'global');
+    const mahasiswaMenu = byType('main', 'mahasiswa');
+    const moderatorMenu = byType('moderator', 'moderator');
+    const adminMenu = byType('admin', 'admin');
 
     const section = (title, items) => {
       let t = `╭──❲ ${title} ❳\n`;
@@ -29,7 +36,8 @@ export default {
 
     let text = `╭──❲ INFO PENGGUNA ❳\n`;
     text += `│ Nama: ${msg.pushName || '-'}\n`;
-    text += `│ Status: ${isSenderAdmin ? 'Admin' : 'Member'}\n`;
+    text += `│ Status: ${isAuthorUser ? 'Author' : isModeratorUser ? 'Moderator' : 'Member'}\n`;
+    if (isModeratorUser) text += `│ Prodi: ${getModeratorDefaultProdi(sender)}\n`;
     text += `╰──────────⊱\n`;
     text += `╭──❲ INFO BOT ❳\n`;
     text += `│ Nama Bot: ${config.BOT_NAME}\n`;
@@ -38,8 +46,10 @@ export default {
     text += `│ Prefix: ${prefix}\n`;
     text += `│ Waktu: ${formatNow()} WIB\n`;
     text += `╰──────────⊱\n`;
-    text += section('MAIN MENU', main);
-    if (isSenderAdmin && admin.length) text += section('ADMIN MENU', admin);
+    text += section('GLOBAL MENU', globalMenu);
+    if (isMahasiswa) text += section('MAHASISWA MENU', mahasiswaMenu);
+    if (isModeratorUser) text += section('MODERATOR MENU', moderatorMenu);
+    if (isAuthorUser && adminMenu.length) text += section('ADMIN MENU', adminMenu);
 
     await sock.sendMessage(msg.key.remoteJid, { text: text.trimEnd() }, { quoted: msg });
   }

@@ -1,6 +1,7 @@
 import { loadRaisingUsers, saveRaisingUsers, loginAndGetSession } from '../utils/raisingAuth.js';
 import { senderNumber } from '../utils/sender.js';
-import { isAdmin, clean } from '../utils/users.js';
+import { clean } from '../utils/users.js';
+import { isAuthor } from '../utils/moderators.js';
 import { editOrSend } from '../utils/reply.js';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString('id-ID');
@@ -9,8 +10,9 @@ export default {
   name: 'raising',
   description: 'Kelola akun RAISING (admin): raising add|list|edit|delete|help',
   type: 'admin',
+  visibility: 'admin',
   async run({ sock, msg, args, prefix }) {
-    if (!isAdmin(senderNumber(msg))) {
+    if (!isAuthor(senderNumber(msg))) {
       await sock.sendMessage(msg.key.remoteJid, { text: 'Command ini hanya untuk admin.' }, { quoted: msg });
       return;
     }

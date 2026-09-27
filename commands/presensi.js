@@ -31,6 +31,7 @@ export default {
   name: 'presensi',
   description: 'Presensi kuliah (presensi | presensi <kode> | presensi <id> <kode>)',
   type: 'main',
+  visibility: 'mahasiswa',
   async run({ sock, msg, args, prefix }) {
     const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Memproses...' }, { quoted: msg });
 

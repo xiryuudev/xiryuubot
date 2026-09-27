@@ -29,6 +29,7 @@ export default {
   name: 'ai',
   description: 'Ngobrol dengan XiryuuBot (ai | ai newsession)',
   type: 'main',
+  visibility: 'global',
   async run({ sock, msg, args, prefix }) {
     const sender = senderNumber(msg);
     if (!sender) return editOrSend(sock, msg, null, 'Gagal mendeteksi nomor WhatsApp Anda.');

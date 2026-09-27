@@ -1,9 +1,10 @@
 import { senderNumber } from '../utils/sender.js';
-import { loadUsers, saveUsers, isAdmin } from '../utils/users.js';
+import { loadUsers, saveUsers } from '../utils/users.js';
+import { isAuthor, isModerator } from '../utils/moderators.js';
 
 export default {
   name: 'daftar',
-  description: 'Daftarkan nomor WhatsApp (user: daftar | admin: daftar <nomor>)',
+  description: 'Daftarkan nomor WhatsApp',
   type: 'main',
   async run({ sock, msg, args, prefix }) {
     const sender = senderNumber(msg);
@@ -13,7 +14,7 @@ export default {
     }
 
     const rawArg = args[0]?.trim();
-    const isSenderAdmin = isAdmin(sender);
+    const isSenderAdmin = isAuthor(sender) || isModerator(sender);
 
     if (!rawArg) {
       const users = loadUsers();

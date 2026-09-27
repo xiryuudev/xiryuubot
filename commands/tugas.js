@@ -1,5 +1,6 @@
 import { loadTasks, saveTasks } from '../utils/tasks.js';
 import { senderNumber } from '../utils/sender.js';
+import { getModeratorProdi, isAuthor, isModerator } from '../utils/moderators.js';
 import config from '../config.js';
 
 const ADMIN_NUMBER = String(config.ADMIN_NUMBER).replace(/[^0-9]/g, '');
@@ -23,24 +24,29 @@ function formatTaskItem(task) {
 
 export default {
   name: 'tugas',
-  description: 'Lihat/hapus tugas (admin: tugas delete <id>)',
-  type: 'main',
+  description: 'Lihat/hapus tugas (.tugas [prodi] | .tugas delete <id>)',
+  type: 'moderator',
+  visibility: 'moderator',
   async run({ sock, msg, args }) {
     const sender = senderNumber(msg);
-    const tasks = loadTasks();
+    let tasks = loadTasks();
 
     const isDeleteAction = args[0]?.toLowerCase() === 'delete';
     if (isDeleteAction && args[1]) {
-      if (!isSenderAdmin(sender)) {
-        await sock.sendMessage(msg.key.remoteJid, { text: '❌ Hanya admin yang bisa menghapus tugas.' }, { quoted: msg });
-        return;
-      }
-
       const targetId = String(args[1]);
       const targetIndex = tasks.findIndex((item) => String(item.id) === targetId);
 
       if (targetIndex === -1) {
         await sock.sendMessage(msg.key.remoteJid, { text: `❌ Tugas dengan ID ${targetId} tidak ditemukan.` }, { quoted: msg });
+        return;
+      }
+
+      const taskProdi = tasks[targetIndex].prodi;
+      const userProdi = getModeratorProdi(sender);
+      const canDel = isAuthor(sender) || (userProdi && userProdi === taskProdi);
+
+      if (!canDel) {
+        await sock.sendMessage(msg.key.remoteJid, { text: '❌ Anda tidak memiliki hak menghapus tugas prodi ini.' }, { quoted: msg });
         return;
       }
 
@@ -50,8 +56,22 @@ export default {
       return;
     }
 
+    // Filter by prodi
+    if (isAuthor(sender)) {
+      const targetProdi = args[0]?.toUpperCase();
+      if (targetProdi) {
+        tasks = tasks.filter((t) => (t.prodi || 'DEFAULT').toUpperCase() === targetProdi);
+      }
+    } else if (isModerator(sender)) {
+      const p = getModeratorProdi(sender);
+      tasks = tasks.filter((t) => (t.prodi || 'DEFAULT').toUpperCase() === p);
+    } else {
+      await sock.sendMessage(msg.key.remoteJid, { text: '❌ Anda bukan moderator atau author.' }, { quoted: msg });
+      return;
+    }
+
     if (!tasks.length) {
-      await sock.sendMessage(msg.key.remoteJid, { text: 'Belum ada tugas yang tercatat.' }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { text: 'Belum ada tugas yang tercatat untuk prodi Anda.' }, { quoted: msg });
       return;
     }
 

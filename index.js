@@ -10,6 +10,7 @@ import { senderJid, senderNumber } from './utils/sender.js';
 import { formatChatTime } from './utils/date.js';
 import config from './config.js';
 import { addTaskFromReport } from './utils/tasks.js';
+import { getGroupProdi, getModeratorDefaultProdi, isAuthor, isModerator } from './utils/moderators.js';
 
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
@@ -160,14 +161,16 @@ async function connectToWhatsApp() {
       }
 
       const senderNum = senderNumber(msg);
-      const isAdminPrivate = senderNum === ADMIN_NUMBER_CLEAN;
+      const isAuthorUser = isAuthor(senderNum) || senderNum === ADMIN_NUMBER_CLEAN;
+      const isModUser = isModerator(senderNum);
       const isMaterialGroup = groupName && /penyimpanan\s+materi|materi\s+storage/i.test(groupName);
 
-      if ((isAdminPrivate || isMaterialGroup) && typeof text === 'string') {
+      if ((isAuthorUser || isModUser || isMaterialGroup) && typeof text === 'string') {
         const isDoc = getMessageInfo(msg.message).type === 'dokumen';
-        const task = addTaskFromReport(text, isDoc);
+        let prodi = getGroupProdi(msg.key.remoteJid) || getModeratorDefaultProdi(senderNum) || (isAuthorUser ? 'SI' : null);
+        const task = addTaskFromReport(text, isDoc, prodi);
         if (task) {
-          const confirmationText = `✅ *Tugas tercatat!*\n📚 ${task.course}\n📌 ${task.title}\n⏰ Deadline: ${task.deadline}${task.link ? `\n🔗 ${task.link}` : ''}`;
+          const confirmationText = `✅ *Tugas tercatat!* [Prodi: ${task.prodi || 'DEFAULT'}]\n📚 ${task.course}\n📌 ${task.title}\n⏰ Deadline: ${task.deadline}${task.link ? `\n🔗 ${task.link}` : ''}`;
           await sock.sendMessage(msg.key.remoteJid, { text: confirmationText }, { quoted: msg });
           continue;
         }
