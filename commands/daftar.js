@@ -6,6 +6,7 @@ export default {
   name: 'daftar',
   description: 'Daftarkan nomor WhatsApp',
   type: 'main',
+  visibility: 'global',
   async run({ sock, msg, args, prefix }) {
     const sender = senderNumber(msg);
     if (args?.[0]?.toLowerCase() === 'help') {

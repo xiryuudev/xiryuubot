@@ -1,17 +1,12 @@
-import fs from 'fs';
-import path from 'path';
+import { getDb } from './db.js';
 
-const DIR = path.resolve('db/ai_chats');
-const MAX_HISTORY = 3;
-
-const getFilePath = (num) => path.join(DIR, `${num}.json`);
+const db = getDb();
 
 export function loadAiHistory(num) {
   try {
-    if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-    const file = getFilePath(num);
-    if (!fs.existsSync(file)) return [];
-    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+    const clean = String(num ?? '').replace(/[^0-9]/g, '');
+    const row = db.prepare('SELECT history FROM ai_chats WHERE phone = ?').get(clean);
+    return row ? JSON.parse(row.history) : [];
   } catch {
     return [];
   }
@@ -19,19 +14,22 @@ export function loadAiHistory(num) {
 
 export function saveAiHistory(num, history) {
   try {
-    if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-    fs.writeFileSync(getFilePath(num), JSON.stringify(history, null, 2));
+    const clean = String(num ?? '').replace(/[^0-9]/g, '');
+    const serialized = JSON.stringify(history ?? []);
+    const row = db.prepare('INSERT OR REPLACE INTO ai_chats (phone, history) VALUES (?, ?)').get(clean, serialized);
+    return row.changed > 0 || row.changes > 0;
   } catch { }
 }
 
 export function clearAiHistory(num) {
   try {
-    const file = getFilePath(num);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
+    const clean = String(num ?? '').replace(/[^0-9]/g, '');
+    db.prepare('DELETE FROM ai_chats WHERE phone = ?').run(clean);
   } catch { }
 }
 
 export function trimHistory(history) {
+  const MAX_HISTORY = 3;
   if (history.length <= MAX_HISTORY * 2) return history;
   return history.slice(-MAX_HISTORY * 2);
 }

@@ -1,38 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+import { getDb } from './db.js';
 
-const DB_PATH = path.resolve('db/tasks.json');
-
-const DATE_PATTERN = /\*?(\d{1,2}\s+[A-Za-z]+\s+\d{4})\*?/;
-const COURSE_PATTERN = /Course:\s*(.*)/i;
-const TYPE_PATTERN = /Type:\s*_?(.*?)_?$/m;
-const TITLE_PATTERN = /Judul:\s*`?([^`\n]+)`?\s*(?:\(\s*\*?([^*)\n]+)\*?\s*\))?/i;
-const LECTURER_PATTERN = /Pengampu:\s*(.*)/i;
-const NOTE_PATTERN = /P\.S:\s*(.*)/i;
-const TASK_BLOCK_PATTERN = /Tugas:\s*([\s\S]*?)(?:Deadline:|$)/i;
-const DEADLINE_PATTERN = /Deadline:\s*\*?([^*\n]+)\*?/i;
-const URL_PATTERN = /(https?:\/\/[^\s]+)/gi;
-
-function ensureDbFile() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify([], null, 2));
-  }
-}
-
-function cleanTaskLines(rawText) {
-  return rawText
-    .split('\n')
-    .map((line) => line.replace(/^>\s*/, '').trim())
-    .filter((line) => line && !line.startsWith('http://') && !line.startsWith('https://') && !line.startsWith('Link:'))
-    .join(' ');
-}
-
-function extractLink(rawTask, fullText) {
-  const taskLinks = rawTask.match(URL_PATTERN);
-  if (taskLinks) return taskLinks[0];
-  const fullTextLinks = fullText.match(URL_PATTERN);
-  return fullTextLinks ? fullTextLinks[0] : null;
-}
+const db = getDb();
 
 function generateNextId(tasks) {
   const numericIds = tasks.map((item) => Number(item.id)).filter(Boolean);
@@ -40,50 +8,23 @@ function generateNextId(tasks) {
   return String(maxId + 1);
 }
 
-export function loadTasks() {
-  try {
-    ensureDbFile();
-    const tasks = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    let requiresSave = false;
-
-    tasks.forEach((item, index) => {
-      if (!item.id || isNaN(Number(item.id))) {
-        item.id = String(index + 1);
-        requiresSave = true;
-      }
-    });
-
-    if (requiresSave) {
-      saveTasks(tasks);
-    }
-
-    return tasks;
-  } catch {
-    return [];
-  }
-}
-
-export function saveTasks(tasks) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(tasks, null, 2));
-}
-
-export function parseReport(text) {
+function parseReport(text) {
   if (typeof text !== 'string') return null;
 
-  const isReport = COURSE_PATTERN.test(text) && TITLE_PATTERN.test(text) && TASK_BLOCK_PATTERN.test(text);
+  const isReport = /Course:/i.test(text) && /Judul:/i.test(text) && /Tugas:/i.test(text);
   if (!isReport) return null;
 
-  const dateMatch = text.match(DATE_PATTERN);
-  const courseMatch = text.match(COURSE_PATTERN);
-  const typeMatch = text.match(TYPE_PATTERN);
-  const titleMatch = text.match(TITLE_PATTERN);
-  const lecturerMatch = text.match(LECTURER_PATTERN);
-  const noteMatch = text.match(NOTE_PATTERN);
-  const deadlineMatch = text.match(DEADLINE_PATTERN);
-  const taskBlockMatch = text.match(TASK_BLOCK_PATTERN);
+  const dateMatch = text.match(/\*?(\d{1,2}\s+[A-Za-z]+\s+\d{4})\*?/);
+  const courseMatch = text.match(/Course:\s*(.*)/i);
+  const typeMatch = text.match(/Type:\s*_?(.*?)_?$/m);
+  const titleMatch = text.match(/Judul:\s*`?([^`\n]+)`?\s*(?:\(\s*\*?([^*)\n]+)\*?\s*\))?/i);
+  const lecturerMatch = text.match(/Pengampu:\s*(.*)/i);
+  const noteMatch = text.match(/P\.S:\s*(.*)/i);
+  const deadlineMatch = text.match(/Deadline:\s*\*?([^*\n]+)\*?/i);
+  const taskBlockMatch = text.match(/Tugas:\s*([\s\S]*?)(?:Deadline:|$)/i);
 
   const rawTaskText = taskBlockMatch ? taskBlockMatch[1].trim() : '';
-  const taskDescription = cleanTaskLines(rawTaskText);
+  const taskDescription = rawTaskText.split('\n').map((line) => line.replace(/^>\s*/, '').trim()).filter((line) => line && !line.startsWith('http://') && !line.startsWith('https://')).join(' ');
   const hasTask = Boolean(taskDescription && taskDescription !== '—' && !taskDescription.toLowerCase().includes('belum ada'));
 
   return {
@@ -96,19 +37,35 @@ export function parseReport(text) {
     lecturer: lecturerMatch ? lecturerMatch[1].trim() : '—',
     hasTask,
     task: hasTask ? taskDescription : 'Tidak ada tugas',
-    link: extractLink(rawTaskText, text),
+    link: null,
     deadline: deadlineMatch ? deadlineMatch[1].trim() : '—',
     note: noteMatch ? noteMatch[1].trim() : '',
-    createdAt: new Date().toISOString()
+    hasDocument: false,
+    prodi: null
   };
 }
 
-export function addTaskFromReport(text, hasDoc = false, prodi = null) {
+export function loadTasks() {
+  return db.prepare('SELECT * FROM tasks').all();
+}
+
+export function saveTasks(tasks) {
+  const insert = db.transaction((list) => {
+    db.prepare('DELETE FROM tasks').run();
+    const stmt = db.prepare('INSERT INTO tasks (id, date, course, type, title, meeting, lecturer, has_task, task, link, deadline, note, created_at, has_document, prodi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const t of list) {
+      stmt.run(t.id, t.date ?? '—', t.course ?? '—', t.type ?? '—', t.title ?? '—', t.meeting ?? '—', t.lecturer ?? '—', t.hasTask ? 1 : 0, t.task ?? 'Tidak ada tugas', t.link ?? '', t.deadline ?? '—', t.note ?? '', t.createdAt ?? new Date().toISOString(), t.hasDocument ? 1 : 0, t.prodi ?? 'SI');
+    }
+  });
+  insert(tasks);
+}
+
+export function parseAndAdd(text, hasDoc = false, prodi = null) {
   const parsed = parseReport(text);
   if (!parsed || !parsed.hasTask) return null;
 
   parsed.hasDocument = hasDoc;
-  if (prodi) parsed.prodi = prodi;
+  parsed.prodi = prodi;
   const tasks = loadTasks();
 
   const existingIndex = tasks.findIndex(
@@ -124,4 +81,8 @@ export function addTaskFromReport(text, hasDoc = false, prodi = null) {
 
   saveTasks(tasks);
   return parsed;
+}
+
+export function addTaskFromReport(text, hasDoc = false, prodi = null) {
+  return parseAndAdd(text, hasDoc, prodi);
 }

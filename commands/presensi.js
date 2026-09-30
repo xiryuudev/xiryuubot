@@ -54,7 +54,7 @@ export default {
         if (!today.length) return editOrSend(sock, msg, loadingMsg, 'Tidak ada jadwal hari ini.');
         let text = 'PRESENSI HARI INI\n';
         for (const j of today) {
-          text += `${j.nama_matakuliah} (Ke-${j.pertemuan_ke})\n`;
+          text += `${j.nama_matakuliah} (Pertemuan Ke-${j.pertemuan_ke})\n`;
           text += `ID: ${j.id_pertemuan_presensi} | ${j.jam_awal.slice(0, 5)}-${j.jam_akhir.slice(0, 5)}\n`;
           text += `Status: ${isDone(j) ? 'Sudah' : 'Belum'} | ${label(j.status_pertemuan)}\n\n`;
         }
@@ -96,7 +96,7 @@ export default {
 
       const target = all.find((j) => String(j.id_pertemuan_presensi) === String(idPertemuan));
       if (target && isDone(target)) {
-        return editOrSend(sock, msg, loadingMsg, `Sudah presensi untuk ${target.nama_matakuliah} (Ke-${target.pertemuan_ke}).`);
+        return editOrSend(sock, msg, loadingMsg, `Sudah presensi untuk ${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke}).`);
       }
 
       const csrf = await csrfPresensi(user.sessionHash, user.cookie);
@@ -115,7 +115,7 @@ export default {
       );
 
       if (submit.data?.status !== 'success') throw new Error(submit.data?.message || 'Kode salah / pertemuan belum dibuka');
-      const nama = target ? `${target.nama_matakuliah} (Ke-${target.pertemuan_ke})` : `ID ${idPertemuan}`;
+      const nama = target ? `${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke})` : `ID ${idPertemuan}`;
       return editOrSend(sock, msg, loadingMsg, `Presensi berhasil: ${nama}\n${submit.data.message || ''}`.trim());
     } catch (err) {
       const detail = err?.response?.data?.message || err.message;

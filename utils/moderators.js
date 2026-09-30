@@ -1,31 +1,64 @@
-import fs from 'fs';
-import path from 'path';
+import { getDb } from './db.js';
 
-const FILE = path.resolve('db/moderators.json');
+const db = getDb();
 
-function ensureFile() {
-  if (!fs.existsSync(FILE)) {
-    fs.writeFileSync(FILE, JSON.stringify({}, null, 2));
+function loadCache() {
+  const rows = db.prepare('SELECT * FROM moderators').all();
+  const cache = {};
+  for (const r of rows) cache[r.phone] = rowToMod(r);
+  return cache;
+}
+
+function rowToMod(r) {
+  return {
+    prodi: r.prodi,
+    defaultProdi: r.default_prodi ?? undefined,
+    name: r.name,
+    groupId: r.group_id,
+    createdAt: r.created_at,
+  };
+}
+
+function saveCache(mods) {
+  db.prepare('DELETE FROM moderators').run();
+  const stmt = db.prepare('INSERT INTO moderators (phone, prodi, default_prodi, name, group_id, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+  const insert = db.transaction((data) => {
+    for (const [num, mod] of Object.entries(data)) {
+      const prodi = mod.prodi ?? 'SI';
+      const defProdi = prodi === 'ALL' ? (mod.defaultProdi ?? null) : null;
+      stmt.run(num, prodi, defProdi, mod.name ?? '', mod.groupId ?? '', mod.createdAt ?? new Date().toISOString());
+    }
+  });
+  insert(mods);
+}
+
+let cache = null;
+let cacheMtime = 0;
+
+function getFreshCache() {
+  if (!cache || Date.now() - cacheMtime > 5000) {
+    cache = loadCache();
+    cacheMtime = Date.now();
   }
+  return cache;
 }
 
 export function loadModerators() {
-  ensureFile();
-  try {
-    return JSON.parse(fs.readFileSync(FILE, 'utf8'));
-  } catch {
-    return {};
-  }
+  const rows = db.prepare('SELECT * FROM moderators').all();
+  const mods = {};
+  for (const r of rows) mods[r.phone] = rowToMod(r);
+  return mods;
 }
 
 export function saveModerators(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  saveCache(data);
+  cache = loadCache();
+  cacheMtime = Date.now();
 }
 
 export function getModerator(number) {
   const clean = String(number ?? '').replace(/[^0-9]/g, '');
-  const mods = loadModerators();
-  return mods[clean] ?? null;
+  return getFreshCache()[clean] ?? null;
 }
 
 export function getModeratorProdi(number) {
@@ -35,15 +68,13 @@ export function getModeratorProdi(number) {
 
 export function getModeratorDefaultProdi(number) {
   const mod = getModerator(number);
-  if (mod?.prodi === 'ALL') return mod?.defaultProdi ?? 'DEFAULT';
+  if (mod?.prodi === 'ALL') return mod?.defaultProdi ?? 'SI';
   return mod?.prodi ?? null;
 }
 
 export function isAuthor(number) {
   const clean = String(number ?? '').replace(/[^0-9]/g, '');
-  const mods = loadModerators();
-  const mod = mods[clean];
-  return mod?.prodi === 'ALL';
+  return getFreshCache()[clean]?.prodi === 'ALL';
 }
 
 export function isModerator(number) {
@@ -55,7 +86,7 @@ export function getProdiByNumber(number) {
 }
 
 export function getGroupProdi(groupId) {
-  const mods = loadModerators();
+  const mods = getFreshCache();
   for (const [num, mod] of Object.entries(mods)) {
     if (mod.groupId === groupId) {
       return mod.prodi === 'ALL' ? mod.defaultProdi : mod.prodi;
@@ -64,10 +95,20 @@ export function getGroupProdi(groupId) {
   return null;
 }
 
+export function loadFreshMods() {
+  return getFreshCache();
+}
+
 export function addModerator(number, prodi, name, groupId) {
   const clean = String(number).replace(/[^0-9]/g, '');
   const mods = loadModerators();
-  mods[clean] = { prodi, name, groupId, createdAt: new Date().toISOString() };
+  mods[clean] = {
+    prodi,
+    defaultProdi: prodi === 'ALL' ? 'SI' : null,
+    name,
+    groupId,
+    createdAt: new Date().toISOString(),
+  };
   saveModerators(mods);
   return mods[clean];
 }

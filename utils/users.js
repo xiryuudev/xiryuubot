@@ -1,24 +1,18 @@
-import fs from 'fs';
-import path from 'path';
+import { getDb } from './db.js';
 
-const FILE = path.resolve('db/users.json');
+const db = getDb();
+
 export const clean = (v) => String(v ?? '').replace(/[^0-9]/g, '');
-
 let cache = null;
 let cacheMtime = 0;
 
 export function loadUsers() {
   try {
-    if (!fs.existsSync(FILE)) {
-      fs.writeFileSync(FILE, JSON.stringify([], null, 2));
-      cache = [];
-      cacheMtime = 0;
-      return cache;
+    if (!cache || Date.now() - cacheMtime > 5000) {
+      const rows = db.prepare('SELECT phone FROM users').all();
+      cache = rows.map(r => r.phone);
+      cacheMtime = Date.now();
     }
-    const mtime = fs.statSync(FILE).mtimeMs;
-    if (cache && mtime === cacheMtime) return cache;
-    cache = JSON.parse(fs.readFileSync(FILE, 'utf8')).map(clean).filter(Boolean);
-    cacheMtime = mtime;
     return cache;
   } catch {
     return [];
@@ -26,11 +20,15 @@ export function loadUsers() {
 }
 
 export function saveUsers(list) {
-  fs.writeFileSync(FILE, JSON.stringify(list, null, 2));
-  cache = list.map(clean).filter(Boolean);
-  try {
-    cacheMtime = fs.statSync(FILE).mtimeMs;
-  } catch {}
+  const cleanList = list.map(clean).filter(Boolean);
+  db.prepare('DELETE FROM users').run();
+  const stmt = db.prepare('INSERT INTO users (phone) VALUES (?)');
+  const insert = db.transaction((items) => {
+    for (const u of items) stmt.run(u);
+  });
+  insert(cleanList);
+  cache = cleanList;
+  cacheMtime = Date.now();
 }
 
 export function isRegistered(jid) {

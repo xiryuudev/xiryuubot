@@ -11,6 +11,13 @@ import { formatChatTime } from './utils/date.js';
 import config from './config.js';
 import { addTaskFromReport } from './utils/tasks.js';
 import { getGroupProdi, getModeratorDefaultProdi, isAuthor, isModerator } from './utils/moderators.js';
+import { initDb, migrateFromJson, migratePengumumanColumns } from './utils/db.js';
+import { startPengumumanScheduler, stopPengumumanScheduler } from './utils/pengumumanScheduler.js';
+
+// Init SQLite and migrate from JSON
+initDb();
+migratePengumumanColumns();
+migrateFromJson();
 
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
@@ -125,6 +132,7 @@ async function connectToWhatsApp() {
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
+      stopPengumumanScheduler();
       const statusCode = lastDisconnect?.error?.output?.statusCode ?? null;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       log.warn(`Koneksi terputus (code: ${statusCode}) | Reconnect: ${shouldReconnect}`);
@@ -132,6 +140,7 @@ async function connectToWhatsApp() {
       else { log.error('Logged out. Hapus folder auth_info_baileys lalu jalankan ulang.'); }
     } else if (connection === 'open') {
       log.ok('Bot berhasil terhubung ke WhatsApp!');
+      startPengumumanScheduler(sock);
     }
   });
 
@@ -198,3 +207,5 @@ async function connectToWhatsApp() {
 }
 
 connectToWhatsApp();
+
+// SIGUSR2 handler removed — nodemon handles it at parent level

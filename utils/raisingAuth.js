@@ -3,27 +3,37 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
+import { getDb } from './db.js';
 
+const db = getDb();
 const BASE_URL = config.RAISING_BASE_URL;
-const STORAGE_FILE = path.resolve('db/raising_users.json');
 const UA = config.UA;
 
 const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 
 export function loadRaisingUsers() {
-  try {
-    if (!fs.existsSync(STORAGE_FILE)) {
-      fs.writeFileSync(STORAGE_FILE, JSON.stringify({}, null, 2));
-      return {};
-    }
-    return JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf8'));
-  } catch {
-    return {};
+  const rows = db.prepare('SELECT * FROM raising_users').all();
+  const users = {};
+  for (const r of rows) {
+    users[r.phone] = {
+      nim: r.nim,
+      password: r.password,
+      sessionHash: r.session_hash,
+      cookie: r.cookie,
+      idMahasiswa: r.id_mahasiswa
+    };
   }
+  return users;
 }
 
 export function saveRaisingUsers(data) {
-  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  const stmt = db.prepare('INSERT OR REPLACE INTO raising_users (phone, nim, password, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?, ?)');
+  const insert = db.transaction((users) => {
+    for (const [num, u] of Object.entries(users)) {
+      stmt.run(num, u.nim, u.password, u.sessionHash, u.cookie, u.idMahasiswa);
+    }
+  });
+  insert(data);
 }
 
 async function extractIdMahasiswa(url, cookie) {

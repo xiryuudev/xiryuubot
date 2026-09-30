@@ -33,7 +33,8 @@ export default {
         await sock.sendMessage(msg.key.remoteJid, { text: `Moderator ${clean} sudah ada.` }, { quoted: msg });
         return;
       }
-      mods[clean] = { prodi: prodi.toUpperCase(), name, groupId, createdAt: new Date().toISOString() };
+      const upperProdi = prodi.toUpperCase();
+      mods[clean] = { prodi: upperProdi, defaultProdi: upperProdi === 'ALL' ? 'SI' : null, name, groupId, createdAt: new Date().toISOString() };
       saveModerators(mods);
       await sock.sendMessage(msg.key.remoteJid, { text: `✅ Moderator ditambahkan: ${clean} (${prodi.toUpperCase()}) - ${name}` }, { quoted: msg });
       return;
@@ -48,7 +49,7 @@ export default {
       let text = `Daftar Moderator (${keys.length})\n\n`;
       for (const num of keys) {
         const m = mods[num];
-        text += `- ${num}\n  Nama: ${m.name}\n  Prodi: ${m.prodi}${m.prodi === 'ALL' ? ` (default: ${m.defaultProdi})` : ''}\n  Grup: ${m.groupId}\n  Ditambah: ${new Date(m.createdAt).toLocaleString('id-ID')}\n\n`;
+        text += `- ${num}\n  Nama: ${m.name}\n  Prodi: ${m.prodi}${m.prodi === 'ALL' ? ` (default: ${m.defaultProdi ?? 'SI'})` : ''}\n  Grup: ${m.groupId}\n  Ditambah: ${new Date(m.createdAt).toLocaleString('id-ID')}\n\n`;
       }
       await sock.sendMessage(msg.key.remoteJid, { text: text.trimEnd() }, { quoted: msg });
       return;
@@ -90,7 +91,6 @@ export default {
         return;
       }
       mods[clean].defaultProdi = prodi.toUpperCase();
-      mods[clean].updatedAt = new Date().toISOString();
       saveModerators(mods);
       await sock.sendMessage(msg.key.remoteJid, { text: `Default prodi author diubah ke ${prodi.toUpperCase()}.` }, { quoted: msg });
       return;
