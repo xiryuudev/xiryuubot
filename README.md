@@ -9,6 +9,7 @@ A general-purpose WhatsApp bot built on Node.js and `@whiskeysockets/baileys`, w
 - Multiple prefixes: `.`, `!`, `/`, `\`
 - Roles: author, per-program moderator, admin, and registered users. The menu only shows what a role is allowed to see
 - AI chat (`.ai`) on any OpenAI-compatible endpoint (default: Groq `openai/gpt-oss-120b`), with web search and sandboxed Node.js code execution
+- Media downloader (`.dl`): YouTube and other sites via `yt-dlp`, TikTok via the tikwm.com API, Instagram via `yt-dlp` with a cookie file. Downloads are capped at `DL_MAX_MB` and one runs at a time per instance
 - Everything stored in a local SQLite database (`db/bot.db`), auto-created on first run. Old JSON files are migrated automatically
 
 The campus module adds:
@@ -28,6 +29,8 @@ All users who are registered:
 | `.daftar` | Register your own number to the whitelist |
 | `.ai <message>` | Chat with the AI |
 | `.ai newsession` | Clear the AI chat history |
+| `.dl <link>` | Download video (auto-detects YouTube, TikTok, Instagram, and other yt-dlp-supported sites) |
+| `.dl audio <link>` | Same, but extracts audio only (MP3) |
 
 Students (registered, with a RAISING account on file):
 
@@ -93,6 +96,15 @@ npm start     # production
 ```
 
 On first start the bot prints a pairing code. Open WhatsApp on the bot's phone, go to Linked devices, and enter it. Send `.daftar` to register your own number.
+
+### Media downloader requirements
+
+`.dl` needs `yt-dlp` and `ffmpeg` installed on the host.
+
+- YouTube and most other sites work out of the box
+- TikTok is fetched through the tikwm.com API because TikTok blocks most datacenter IPs directly
+- Instagram requires a `cookies.txt` (Netscape format) at the path in `DL_COOKIES`. Export one from a logged-in browser session. If the session expires, the bot logs back in with `IG_USERNAME` / `IG_PASSWORD` and refreshes the file automatically
+- `DL_PROXY` (optional) passes a proxy to `yt-dlp` for sites that block your server IP
 
 ## Project layout
 

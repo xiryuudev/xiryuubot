@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 .env.example
 
 auth_info_baileys/
+
+# Media downloader output & session cookies (contains IG sessionid — never commit)
+downloads/
+cookies.txt
