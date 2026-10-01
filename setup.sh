@@ -4,27 +4,11 @@
 
 echo "Setup XiryuuBot..."
 
-# 1. Buat struktur db/
+# 1. Buat struktur db/ (SQLite dibuat otomatis saat bot jalan)
 echo "Membuat direktori db/..."
-mkdir -p db/ai_chats
+mkdir -p db
 
-# 2. Inisialisasi db/users.json
-if [ ! -f db/users.json ]; then
-  echo "Membuat db/users.json (empty)..."
-  echo "[]" >db/users.json
-else
-  echo "✅ db/users.json sudah ada, skip."
-fi
-
-# 3. Inisialisasi db/raising_users.json
-if [ ! -f db/raising_users.json ]; then
-  echo "Membuat db/raising_users.json (empty)..."
-  echo "{}" >db/raising_users.json
-else
-  echo "✅ db/raising_users.json sudah ada, skip."
-fi
-
-# 4. Buat .env jika belum ada
+# 2. Buat .env jika belum ada
 if [ ! -f .env ]; then
   echo "Membuat .env dari .env.example..."
   cp .env.example .env
@@ -33,7 +17,7 @@ else
   echo "✅ .env sudah ada, skip."
 fi
 
-# 5. Install dependencies
+# 3. Install dependencies
 echo "📦 Installing npm dependencies..."
 npm install
 
@@ -44,3 +28,5 @@ echo "Langkah selanjutnya:"
 echo "1. Edit file .env dan isi konfigurasi (AI_API_KEY, BOT_NUMBER, dll)"
 echo "2. Jalankan bot dengan: npm run dev"
 echo "3. Kirim .daftar untuk mendaftarkan nomor Anda ke bot"
+echo ""
+echo "Catatan: db/bot.db (SQLite) dibuat otomatis saat bot pertama kali dijalankan."
