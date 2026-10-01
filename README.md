@@ -1,198 +1,119 @@
 # XiryuuBot
 
-WhatsApp bot general-purpose berbasis Node.js menggunakan `@whiskeysockets/baileys` dan AI assistant dengan tool-calling. Siap dipakai untuk khalayak umum; integrasi kampus (Portal Akademik RAISING — Alma Ata University) tersedia sebagai modul tambahan untuk mahasiswa.
+A general-purpose WhatsApp bot built on Node.js and `@whiskeysockets/baileys`, with an AI assistant that can search the web and run code. It also ships with a campus module for Alma Ata University's RAISING academic portal, for students who want it.
 
----
+## Features
 
-## Fitur Utama
+- Pairing-code login (no QR scan) and a whitelist so only registered numbers can use the bot
+- Commands load automatically from `commands/` — drop a file in, it works
+- Multiple prefixes: `.`, `!`, `/`, `\`
+- Roles: author, per-program moderator, admin, and registered users. The menu only shows what a role is allowed to see
+- AI chat (`.ai`) on any OpenAI-compatible endpoint (default: Groq `openai/gpt-oss-120b`), with web search and sandboxed Node.js code execution
+- Everything stored in a local SQLite database (`db/bot.db`), auto-created on first run. Old JSON files are migrated automatically
 
-### 🔹 Core
+The campus module adds:
 
-- **Autentikasi Pairing Code**: Koneksi mudah tanpa QR code, menggunakan pairing code nomor WhatsApp.
-- **Whitelist User Filter**: Akses bot dibatasi oleh whitelist (SQLite table `users`).
-- **Dynamic Command Loader**: Memuat command otomatis dari folder `commands/` (cukup tambah file `.js`).
-- **Multi-Prefix Support**: Mendukung awalan `!`, `.`, `/`, `\`.
-- **Hierarki Role**: Author → Moderator (per prodi) → Admin → User terdaftar, dengan filtering visibility menu (`global`, `mahasiswa`, `moderator`, `admin`).
-- **AI Assistant with Tools (`.ai`)**:
-  - Endpoint OpenAI-compatible (default: Groq, `openai/gpt-oss-120b`).
-  - Mendukung **Web Search** (DuckDuckGo) & **Code Execution** (Sandbox Node.js).
-  - History percakapan per user (max 3 pasang pesan, auto-trim).
-  - Reset sesi via `.ai newsession`.
-- **SQLite Database** (`db/bot.db`, via `better-sqlite3`):
-  - Tabel `users`, `moderators`, `tasks`, `raising_users`, `ai_chats`, `pengumuman`.
-  - Auto-migrate dari file JSON lama saat startup.
-- **Global Config & Logging**: Konfigurasi terpusat via `.env` + `config.js`, colored logging `pino-pretty`.
+- Class schedule lookup (`.jadwal`) and attendance check-in (`.presensi`)
+- Task capture: messages that look like a task report (`Course:` / `Judul:` / `Tugas:`) in a class group are picked up automatically and can be managed with `.tugas`
+- Scheduled announcements (`.pengumuman`) that get broadcast to the right groups at the set date and time
 
-### 🔹 Campus Module (RAISING) — opsional
+## Commands
 
-- Scraping jadwal kuliah (`.jadwal`).
-- Presensi kuliah otomatis/manual (`.presensi`).
-- Manajemen akun RAISING admin (`.raising add/list/edit/delete`).
-- **Auto Task Capture**: pesan/dokumen yang memuat pola laporan tugas (`Course:`, `Judul:`, `Tugas:`) di chat/grup materi otomatis tercatat sebagai task (SQLite table `tasks`). Moderator dapat melihat/menghapus via `.tugas`.
-- **Pengumuman terjadwal** (`.pengumuman add/list/edit/delete`): broadcast otomatis ke grup terkait pada tanggal & jam yang ditentukan (scheduler tick per menit).
+All users who are registered:
 
----
-
-## 📋 Daftar Command
-
-### 🔹 User Global (semua yang terdaftar)
-
-| Command | Deskripsi |
+| Command | What it does |
 | :--- | :--- |
-| `.menu` | Menampilkan daftar command sesuai role, info pengguna, dan info bot. |
-| `.ping` | Cek status respon bot. |
-| `.daftar` | Mendaftarkan nomor WhatsApp Anda ke whitelist bot (self-registration). |
-| `.ai <pesan>` | Ngobrol dengan AI Assistant (mendukung search web & run JS). |
-| `.ai newsession` | Menghapus history chat AI dan memulai sesi baru dari 0. |
+| `.menu` | List of commands for your role, plus bot info |
+| `.ping` | Check if the bot responds |
+| `.daftar` | Register your own number to the whitelist |
+| `.ai <message>` | Chat with the AI |
+| `.ai newsession` | Clear the AI chat history |
 
-### 🔹 Mahasiswa (terdaftar + akun RAISING)
+Students (registered, with a RAISING account on file):
 
-| Command | Deskripsi |
+| Command | What it does |
 | :--- | :--- |
-| `.jadwal [hari/full]` | Menampilkan jadwal kuliah RAISING (hari ini, besok, spesifik hari, atau full). |
-| `.presensi [kode]` atau `.presensi <id> <kode>` | Mengisi presensi kuliah yang sedang berlangsung atau spesifik sesi. |
+| `.jadwal [day/full]` | Your class schedule |
+| `.presensi [code]` | Check in to an ongoing (or specific) session |
 
-### 🔹 Moderator (per prodi, ditentukan author)
+Moderators (assigned per academic program by the author):
 
-| Command | Deskripsi |
+| Command | What it does |
 | :--- | :--- |
-| `.tugas` / `.tugas <prodi>` | Lihat daftar tugas (moderator: prodi sendiri; author: prodi tertentu). |
-| `.tugas delete <id>` | Hapus tugas berdasarkan ID (author atau moderator prodi tersebut). |
-| `.pengumuman add <DD/MM/YYYY> <HH:MM> <deskripsi> [PRODI]` | Tambah pengumuman terjadwal. |
-| `.pengumuman list [PRODI]` | Lihat daftar pengumuman. |
-| `.pengumuman edit <ID> <DD/MM/YYYY> <HH:MM> <deskripsi>` | Edit pengumuman. |
-| `.pengumuman delete <ID>` | Hapus pengumuman. |
+| `.tugas` / `.tugas <program>` | List captured tasks |
+| `.tugas delete <id>` | Delete a task (author, or a moderator of that program) |
+| `.pengumuman add <DD/MM/YYYY> <HH:MM> <text> [PROGRAM]` | Schedule an announcement |
+| `.pengumuman list [PROGRAM]` | List announcements |
+| `.pengumuman edit <id> <DD/MM/YYYY> <HH:MM> <text>` | Edit one |
+| `.pengumuman delete <id>` | Delete one |
 
-### 🔹 Author
+Author only:
 
-| Command | Deskripsi |
+| Command | What it does |
 | :--- | :--- |
-| `.moderator add <nomor_wa> <kode_prodi> <nama> <group_id>` | Tambah moderator baru. |
-| `.moderator list` | Lihat daftar moderator. |
-| `.moderator delete <nomor_wa>` | Hapus moderator. |
-| `.moderator setdefault <nomor_wa> <kode_prodi>` | Set default prodi untuk user prodi ALL. |
-| `.userlist` | Menampilkan daftar user terdaftar beserta status akun RAISING (✅/❌). |
-| `.daftar <nomor>` | Mendaftarkan nomor WhatsApp user lain ke whitelist. |
-| `.raising add <nim> <pass>` | Menambahkan akun RAISING. |
-| `.raising list` | Menampilkan daftar akun RAISING yang tersimpan. |
-| `.raising edit <nim> <pass>` | Memperbarui password RAISING. |
-| `.raising delete <nim>` | Menghapus akun RAISING. |
-| `.restart` | Restart bot (3 detik kemudian, via nodemon watcher). |
+| `.moderator add <wa_number> <program> <name> <group_id>` | Add a moderator |
+| `.moderator list` / `.moderator delete <wa_number>` | Manage moderators |
+| `.moderator setdefault <wa_number> <program>` | Set default program for an "ALL" user |
+| `.userlist` | Registered users, with RAISING account status |
+| `.daftar <number>` | Register someone else |
+| `.raising add/list/edit/delete` | Manage RAISING accounts |
+| `.restart` | Restart the bot |
 
-> Module RAISING dapat dinonaktifkan dengan tidak mengisi kredensial akun `.raising` — command terkait tidak akan berfungsi, core tetap berjalan.
+The campus module can be ignored entirely: without RAISING accounts configured, those commands simply won't work and the rest of the bot runs as normal.
 
----
+## Getting started
 
-## 🛠️ Instalasi & Menjalankan Bot
-
-1. **Clone Repository & Masuk Direktori**:
-
-   ```bash
-   git clone git@github.com:xiryuudev/xiryuubot.git
-   cd xiryuubot
-   ```
-
-2. **Jalankan Automated Setup**:
-
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
-
-   Script `setup.sh` akan:
-   - Menyalin `.env.example` ke `.env` jika belum ada.
-   - Menginstall seluruh dependency npm.
-
-   Database SQLite (`db/bot.db`) dibuat otomatis saat bot pertama kali dijalankan; file JSON lama (`users.json`, `raising_users.json`) otomatis dimigrasi.
-
-3. **Konfigurasi Environment**:
-   Edit file `.env` dan isi `AI_API_KEY` (dari Groq) serta nomor WhatsApp/admin:
-
-   ```env
-   BOT_NAME=XiryuuBot
-   BOT_NUMBER=62895622331910
-   AUTHOR_NUMBER=6289650943134
-   ADMIN_NUMBER=6289650943134
-   ADMIN_NAME=Farrel Zacky R
-   AI_BASE_URL=https://api.groq.com/openai/v1
-   AI_API_KEY=your_groq_api_key_here
-   AI_MODEL=openai/gpt-oss-120b
-   RAISING_BASE_URL=https://raising.almaata.ac.id
-   ```
-
-4. **Jalankan Bot**:
-   - Mode Development (dengan nodemon auto-reload):
-
-     ```bash
-     npm run dev
-     ```
-
-   - Mode Production:
-
-     ```bash
-     npm start
-     ```
-
----
-
-## 📁 Struktur Direktori
-
-```text
-xiryuubot/
-├── auth_info_baileys/     # Sesi autentikasi WhatsApp (Baileys)
-├── commands/              # Kumpulan file command bot
-│   ├── ai.js              # AI Assistant dengan tools & history
-│   ├── daftar.js          # Registrasi whitelist
-│   ├── jadwal.js          # Jadwal kuliah RAISING (mahasiswa)
-│   ├── menu.js            # Menu utama & info bot (filtered per role)
-│   ├── moderator.js       # Manajemen moderator (author)
-│   ├── pengumuman.js      # Pengumuman terjadwal per prodi (moderator)
-│   ├── ping.js            # Ping check
-│   ├── presensi.js        # Submit presensi kuliah (mahasiswa)
-│   ├── raising.js         # Manajemen akun RAISING (author)
-│   ├── restart.js         # Restart bot (author)
-│   ├── tugas.js           # Lihat/hapus task (moderator)
-│   └── userlist.js        # List user & status RAISING (author)
-├── db/
-│   └── bot.db             # Database SQLite (users, moderators, tasks,
-│                          #  raising_users, ai_chats, pengumuman)
-├── utils/
-│   ├── aiHistory.js       # Manajemen & trim history AI (SQLite)
-│   ├── date.js            # Helper format tanggal & WIB
-│   ├── db.js              # Init SQLite, skema, & migrasi JSON→SQLite
-│   ├── moderators.js      # Manajemen role & prodi moderator
-│   ├── pengumuman.js      # CRUD pengumuman (SQLite)
-│   ├── pengumumanScheduler.js # Scheduler broadcast pengumuman
-│   ├── raisingAuth.js     # Auth & scraper portal RAISING
-│   ├── reply.js           # Helper edit-or-send message
-│   ├── sender.js          # Helper ekstraksi nomor/JID pengirim
-│   ├── tasks.js           # CRUD & auto-detect task dari laporan
-│   ├── tools.js           # Web search & code execution untuk AI
-│   └── users.js           # Whitelist mtime-cached
-├── config.js              # Global configuration loader
-├── index.js               # Entry point & WhatsApp router
-├── nodemon.json           # Konfigurasi nodemon watcher
-├── setup.sh               # Script instalasi otomatis
-└── package.json           # Dependencies & scripts
+```bash
+git clone git@github.com:xiryuudev/xiryuubot.git
+cd xiryuubot
+./setup.sh
 ```
 
----
+`setup.sh` copies `.env.example` to `.env` (if missing) and runs `npm install`. The SQLite database is created on first run.
 
-## 📦 Dependencies Utama
+Fill in `.env`:
 
-| Package | Fungsi |
-| :--- | :--- |
-| `@whiskeysockets/baileys` | WebSocket client WhatsApp |
-| `better-sqlite3` | Database SQLite sinkron |
-| `axios` | HTTP client (scraper RAISING) |
-| `dotenv` | Konfigurasi environment |
-| `pino` / `pino-pretty` | Logging colored |
-| `nodemon` | Dev auto-reload |
+```env
+BOT_NAME=XiryuuBot
+BOT_NUMBER=62895622331910        # the bot's WhatsApp number
+AUTHOR_NUMBER=6289650943134
+ADMIN_NUMBER=6289650943134
+ADMIN_NAME=Farrel Zacky R
+AI_BASE_URL=https://api.groq.com/openai/v1
+AI_API_KEY=your_groq_api_key
+AI_MODEL=openai/gpt-oss-120b
+RAISING_BASE_URL=https://raising.almaata.ac.id
+```
 
-AI & web search menggunakan `fetch` native Node.js (endpoint OpenAI-compatible + DuckDuckGo).
+Then run it:
 
----
+```bash
+npm run dev   # development, auto-reload
+npm start     # production
+```
 
-## 👥 Author
+On first start the bot prints a pairing code. Open WhatsApp on the bot's phone, go to Linked devices, and enter it. Send `.daftar` to register your own number.
 
-- **Farrel Zacky Rahmanda**
+## Project layout
+
+```
+commands/    one file per command, loaded at startup
+utils/       database, roles, AI history, RAISING scraper, schedulers, helpers
+config.js    .env loader
+index.js     entry point and message router
+db/bot.db    SQLite database (created at runtime, not committed)
+```
+
+## Dependencies
+
+- `@whiskeysockets/baileys` — WhatsApp connection
+- `better-sqlite3` — local database
+- `axios` — RAISING portal requests
+- `pino` / `pino-pretty` — logging
+- `nodemon` — dev auto-reload
+
+AI calls and web search use Node's built-in `fetch`.
+
+## Author
+
+Farrel Zacky Rahmanda
