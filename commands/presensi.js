@@ -33,7 +33,7 @@ export default {
   type: 'main',
   visibility: 'mahasiswa',
   async run({ sock, msg, args, prefix }) {
-    const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Memproses...' }, { quoted: msg });
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
 
     if (args[0]?.toLowerCase() === 'help') {
       const helpText = `✅ *Command: presensi*\nFungsi: Melakukan presensi pada jadwal kuliah RAISING yang sedang berlangsung.\nCara pakai:\n- \`presensi\` — Lihat daftar jadwal hari ini dengan status presensi\n- \`presensi <kode>\` — Submit presensi untuk sesi hari ini (otomatis mendeteksi sesi yang dibuka)\n- \`presensi <id_pertemuan> <kode>\` — Submit presensi untuk pertemuan tertentu`;
@@ -51,7 +51,7 @@ export default {
       const today = filterByDate(all, new Date());
 
       if (!args.length) {
-        if (!today.length) return editOrSend(sock, msg, loadingMsg, 'Tidak ada jadwal hari ini.');
+        if (!today.length) await editOrSend(sock, msg, 'Tidak ada jadwal hari ini.');
         let text = 'PRESENSI HARI INI\n';
         for (const j of today) {
           text += `${j.nama_matakuliah} (Pertemuan Ke-${j.pertemuan_ke})\n`;
@@ -59,7 +59,7 @@ export default {
           text += `Status: ${isDone(j) ? 'Sudah' : 'Belum'} | ${label(j.status_pertemuan)}\n\n`;
         }
         text += `Kirim: ${prefix}presensi <kode>`;
-        return editOrSend(sock, msg, loadingMsg, text.trimEnd());
+        await editOrSend(sock, msg, text.trimEnd());
       }
 
       let idPertemuan;
@@ -77,7 +77,7 @@ export default {
             for (const j of belum) text += `- ${j.nama_matakuliah} (ID: ${j.id_pertemuan_presensi}) [${label(j.status_pertemuan)}]\n`;
             text += `\nGunakan: ${prefix}presensi <id> <kode> jika perlu`;
           }
-          return editOrSend(sock, msg, loadingMsg, text.trimEnd());
+          await editOrSend(sock, msg, text.trimEnd());
         }
 
         if (kandidat.length !== 1) {
@@ -85,18 +85,18 @@ export default {
           for (const j of kandidat) {
             text += `- ${j.nama_matakuliah} (ID: ${j.id_pertemuan_presensi}) [${label(j.status_pertemuan)}]\n`;
           }
-          return editOrSend(sock, msg, loadingMsg, `${text}\nGunakan: ${prefix}presensi <id> <kode>`.trimEnd());
+          await editOrSend(sock, msg, `${text}\nGunakan: ${prefix}presensi <id> <kode>`.trimEnd());
         }
         idPertemuan = kandidat[0].id_pertemuan_presensi;
       } else {
         [idPertemuan, kode] = args;
       }
 
-      if (!idPertemuan || !kode) return editOrSend(sock, msg, loadingMsg, `Format: ${prefix}presensi <kode> atau ${prefix}presensi <id_pertemuan> <kode>`);
+      if (!idPertemuan || !kode) await editOrSend(sock, msg, `Format: ${prefix}presensi <kode> atau ${prefix}presensi <id_pertemuan> <kode>`);
 
       const target = all.find((j) => String(j.id_pertemuan_presensi) === String(idPertemuan));
       if (target && isDone(target)) {
-        return editOrSend(sock, msg, loadingMsg, `Sudah presensi untuk ${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke}).`);
+        await editOrSend(sock, msg, `Sudah presensi untuk ${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke}).`);
       }
 
       const csrf = await csrfPresensi(user.sessionHash, user.cookie);
@@ -116,10 +116,10 @@ export default {
 
       if (submit.data?.status !== 'success') throw new Error(submit.data?.message || 'Kode salah / pertemuan belum dibuka');
       const nama = target ? `${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke})` : `ID ${idPertemuan}`;
-      return editOrSend(sock, msg, loadingMsg, `Presensi berhasil: ${nama}\n${submit.data.message || ''}`.trim());
+      await editOrSend(sock, msg, `Presensi berhasil: ${nama}\n${submit.data.message || ''}`.trim());
     } catch (err) {
       const detail = err?.response?.data?.message || err.message;
-      return editOrSend(sock, msg, loadingMsg, `Gagal presensi: ${detail}`);
+      await editOrSend(sock, msg, `Gagal presensi: ${detail}`);
     }
   }
 };

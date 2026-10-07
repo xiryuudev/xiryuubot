@@ -47,6 +47,8 @@ export default {
     const userMessage = args.join(' ').trim();
     if (!userMessage) return editOrSend(sock, msg, null, 'Kirim pesan dong, contoh: *' + prefix + 'ai halo*');
 
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+
     let history = loadAiHistory(sender);
 
     const turnCount = history.filter((m) => m.role === 'user').length;
@@ -89,6 +91,7 @@ export default {
       });
       if (!res.ok) {
         const errTxt = await res.text();
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
         return editOrSend(sock, msg, null, `AI Error ${res.status}: ${errTxt.slice(0, 400)}`);
       }
       const data = await res.json();
@@ -121,6 +124,7 @@ export default {
     const newHistory = trimHistory([...history, { role: 'user', content: userMessage }, { role: 'assistant', content: finalReply }]);
     saveAiHistory(sender, newHistory);
 
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
     return editOrSend(sock, msg, null, finalReply);
   }
 };

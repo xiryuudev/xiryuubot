@@ -56,7 +56,7 @@ export default {
   visibility: 'mahasiswa',
   async run({ sock, msg, args }) {
     const arg = args[0]?.toLowerCase();
-    const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Mengambil jadwal...' }, { quoted: msg });
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
 
     if (args[0]?.toLowerCase() === 'help') {
       const helpText = `🗓️ *Command: jadwal*\nFungsi: Menampilkan jadwal kuliah RAISING.\nCara pakai:\n- \`jadwal\` — Lihat jadwal hari ini\n- \`jadwal besok\` — Lihat jadwal besok\n- \`jadwal <hari>\` — Lihat jadwal hari tertentu (contoh: \`jadwal senin\`)\n- \`jadwal full\` — Lihat semua jadwal`;
@@ -82,9 +82,10 @@ export default {
         list = filterByDayName(list, arg);
       }
 
-      await editOrSend(sock, msg, loadingMsg, formatJadwal(list, user.profile, user.dpa));
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      await editOrSend(sock, msg, formatJadwal(list, user.profile, user.dpa));
     } catch (err) {
-      await editOrSend(sock, msg, loadingMsg, `Gagal: ${err.message}`);
+      await editOrSend(sock, msg, `Gagal: ${err.message}`);
     }
   }
 };

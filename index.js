@@ -58,7 +58,12 @@ async function loadCommands() {
       const url = `${pathToFileURL(path.join(CMD_DIR, file)).href}?update=${Date.now()}`;
       const mod = await import(url);
       const cmd = mod.default;
-      if (cmd?.name) commands.set(cmd.name.toLowerCase(), cmd);
+      if (cmd?.name) {
+        commands.set(cmd.name.toLowerCase(), cmd);
+        (cmd.aliases || []).forEach((alias) => {
+          commands.set(alias.toLowerCase(), { ...cmd, _alias: cmd.name });
+        });
+      }
     } catch (err) {
       log.error(`Gagal memuat command ${file}:`, err);
     }

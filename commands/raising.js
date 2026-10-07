@@ -43,14 +43,16 @@ export default {
         return;
       }
       const num = clean(noWa);
-      const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: `Mencoba login untuk NIM ${nim}...` }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
       try {
         const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
         users[num] = { nim, password, sessionHash, cookie, idMahasiswa, createdAt: new Date().toISOString() };
         saveRaisingUsers(users);
-        await editOrSend(sock, msg, loadingMsg, `User ${num} (NIM: ${nim}, ID: ${idMahasiswa || 'N/A'}) berhasil ditambahkan.`);
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+        await editOrSend(sock, msg, `User ${num} (NIM: ${nim}, ID: ${idMahasiswa || 'N/A'}) berhasil ditambahkan.`);
       } catch (err) {
-        await editOrSend(sock, msg, loadingMsg, `Gagal login: ${err.message}`);
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
+        await editOrSend(sock, msg, `Gagal login: ${err.message}`);
       }
       return;
     }
@@ -66,8 +68,9 @@ export default {
         const u = users[num];
         text += `- ${num}\n  NIM: ${u.nim} (ID: ${u.idMahasiswa || '-'})\n  Ditambah: ${fmtDate(u.createdAt)}\n\n`;
       }
-      const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: 'Mengirim data...' }, { quoted: msg });
-      await editOrSend(sock, msg, loadingMsg, text.trimEnd());
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      await editOrSend(sock, msg, text.trimEnd());
       return;
     }
 
@@ -82,14 +85,16 @@ export default {
         await sock.sendMessage(msg.key.remoteJid, { text: `User ${num} tidak ditemukan.` }, { quoted: msg });
         return;
       }
-      const loadingMsg = await sock.sendMessage(msg.key.remoteJid, { text: `Re-login untuk NIM ${nim}...` }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
       try {
         const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
         users[num] = { nim, password, sessionHash, cookie, idMahasiswa, createdAt: users[num].createdAt, updatedAt: new Date().toISOString() };
         saveRaisingUsers(users);
-        await editOrSend(sock, msg, loadingMsg, `User ${num} diperbarui ke NIM ${nim} (ID: ${idMahasiswa || 'N/A'}).`);
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+        await editOrSend(sock, msg, `User ${num} diperbarui ke NIM ${nim} (ID: ${idMahasiswa || 'N/A'}).`);
       } catch (err) {
-        await editOrSend(sock, msg, loadingMsg, `Gagal re-login: ${err.message}`);
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
+        await editOrSend(sock, msg, `Gagal re-login: ${err.message}`);
       }
       return;
     }
