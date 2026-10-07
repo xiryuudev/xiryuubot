@@ -54,7 +54,6 @@ async function downloadWithYtdlp(url, audio, cookies) {
 }
 
 async function downloadWithGalleryDL(url) {
-  // gallery-dl with -d prints the downloaded file path to stdout (with # prefix)
   return new Promise((resolve, reject) => {
     execFile('gallery-dl', ['-d', DL_DIR, url], {
       timeout: config.DL_TIMEOUT_S * 1000,
@@ -104,7 +103,6 @@ async function downloadTiktok(url, audio) {
   const json = await res.json();
   if (!json || json.code !== 0 || !json.data) throw new Error(json?.msg || 'link tiktok tidak dapat diproses');
 
-  // Check if it's an image carousel (images array exists)
   if (json.data.images && json.data.images.length > 0 && !audio) {
     const results = [];
     for (let i = 0; i < json.data.images.length; i++) {
@@ -117,7 +115,6 @@ async function downloadTiktok(url, audio) {
     return results;
   }
 
-  // Video or audio
   const target = audio ? json.data.music : (json.data.play || json.data.wmplay);
   if (!target) throw new Error('file tiktok tidak ditemukan');
   const ext = audio ? 'mp3' : 'mp4';
@@ -145,6 +142,22 @@ export default {
   type: 'main',
   visibility: 'global',
   async run({ sock, msg, args }) {
+    if (args[0]?.toLowerCase() === 'help') {
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      const helpText = `📥 *Command: .dl*
+Fungsi: Download video/audio/foto dari berbagai platform (YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll). Prioritas gallery-dl (carousel, multi-image), fallback yt-dlp. Support audio-only.
+
+Cara pakai:
+- \`.dl <link>\` — Download video/foto (gallery-dl → yt-dlp fallback)
+- \`.dl audio <link>\` — Download audio-only (yt-dlp mp3)
+- Carousel/multi-image: otomatis download semua (TikTok, Pinterest, IG)
+
+Platform didukung: YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      return;
+    }
+
     const audio = args[0]?.toLowerCase() === 'audio';
     const url = (audio ? args[1] : args[0])?.trim();
 
@@ -155,7 +168,7 @@ export default {
 
     const site = detectSite(url);
     if (!site) {
-      await editOrSend(sock, msg, '❌ Link tidak valid.');
+      await editOrSend(sock, msg, 'Link tidak valid.');
       return;
     }
 
@@ -177,14 +190,12 @@ export default {
         result = await downloadTiktok(url, audio);
         downloadedFiles = Array.isArray(result) ? result : [result];
       } else {
-        // Try gallery-dl first (unless audio-only requested, then skip to yt-dlp)
         if (!audio) {
           try {
             result = await downloadWithGalleryDL(url);
             downloadedFiles = [result];
             galleryDlSucceeded = true;
           } catch (gdErr) {
-            // fallback to yt-dlp
             console.log('[dl] gallery-dl failed, trying yt-dlp:', gdErr.message);
             const cookies = site === 'instagram' && hasValidCookies() ? config.DL_COOKIES : null;
             try {
@@ -202,7 +213,6 @@ export default {
             }
           }
         } else {
-          // audio requested, use yt-dlp directly
           const cookies = site === 'instagram' && hasValidCookies() ? config.DL_COOKIES : null;
           try {
             result = await downloadWithYtdlp(url, audio, cookies);
@@ -220,8 +230,6 @@ export default {
         }
       }
 
-      // Process each downloaded file
-      const filesToCleanup = [];
       for (const fileInfo of downloadedFiles) {
         const { size } = await fs.promises.stat(fileInfo.file);
         if (size > MAX_BYTES) throw FILE_TOO_BIG;
@@ -236,7 +244,6 @@ export default {
           payload.video = { url: fileInfo.file };
           payload.fileName = path.basename(fileInfo.file);
         } else {
-          // Send images as image, not document
           payload.image = { url: fileInfo.file };
         }
 
@@ -247,7 +254,7 @@ export default {
     } catch (err) {
       console.log('[dl] Gagal:', err.message || err);
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-      await editOrSend(sock, msg, `❌ Download gagal: ${friendlyError(err)}`);
+      await editOrSend(sock, msg, `Download gagal: ${friendlyError(err)}`);
     } finally {
       busy = false;
       for (const file of filesToCleanup) {

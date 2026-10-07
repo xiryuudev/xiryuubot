@@ -33,25 +33,35 @@ export default {
   type: 'main',
   visibility: 'mahasiswa',
   async run({ sock, msg, args, prefix }) {
-    await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      if (args[0]?.toLowerCase() === 'help') {
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+        const helpText = `✅ *Command: presensi*
+  Fungsi: Melakukan presensi pada jadwal kuliah RAISING yang sedang berlangsung.
+  Cara pakai:
+  - \`presensi\` — Lihat daftar jadwal hari ini dengan status presensi
+  - \`presensi <kode>\` — Submit presensi untuk sesi hari ini (otomatis mendeteksi sesi yang dibuka)
+  - \`presensi <id_pertemuan> <kode>\` — Submit presensi untuk pertemuan tertentu`;
+        await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+        return;
+      }
 
-    if (args[0]?.toLowerCase() === 'help') {
-      const helpText = `✅ *Command: presensi*\nFungsi: Melakukan presensi pada jadwal kuliah RAISING yang sedang berlangsung.\nCara pakai:\n- \`presensi\` — Lihat daftar jadwal hari ini dengan status presensi\n- \`presensi <kode>\` — Submit presensi untuk sesi hari ini (otomatis mendeteksi sesi yang dibuka)\n- \`presensi <id_pertemuan> <kode>\` — Submit presensi untuk pertemuan tertentu`;
-      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
-      return;
-    }
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
 
-    try {
+      try {
       const user = await getValidSession(senderNumber(msg));
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
         headers: { Cookie: user.cookie, 'User-Agent': UA }
       });
       if (data.status !== 'success') throw new Error('Gagal ambil jadwal');
-      const all = (data.data || []).sort((a, b) => a.jam_awal.localeCompare(b.jam_awal));
+      const all = (data.data || []).sort((a, b) => a.jam_awal.localeCompare(b.jam_akhir));
       const today = filterByDate(all, new Date());
 
       if (!args.length) {
-        if (!today.length) await editOrSend(sock, msg, 'Tidak ada jadwal hari ini.');
+        if (!today.length) {
+          await editOrSend(sock, msg, 'Tidak ada jadwal hari ini.');
+          return;
+        }
         let text = 'PRESENSI HARI INI\n';
         for (const j of today) {
           text += `${j.nama_matakuliah} (Pertemuan Ke-${j.pertemuan_ke})\n`;
@@ -60,6 +70,7 @@ export default {
         }
         text += `Kirim: ${prefix}presensi <kode>`;
         await editOrSend(sock, msg, text.trimEnd());
+        return;
       }
 
       let idPertemuan;
@@ -78,6 +89,7 @@ export default {
             text += `\nGunakan: ${prefix}presensi <id> <kode> jika perlu`;
           }
           await editOrSend(sock, msg, text.trimEnd());
+          return;
         }
 
         if (kandidat.length !== 1) {
@@ -86,17 +98,22 @@ export default {
             text += `- ${j.nama_matakuliah} (ID: ${j.id_pertemuan_presensi}) [${label(j.status_pertemuan)}]\n`;
           }
           await editOrSend(sock, msg, `${text}\nGunakan: ${prefix}presensi <id> <kode>`.trimEnd());
+          return;
         }
         idPertemuan = kandidat[0].id_pertemuan_presensi;
       } else {
         [idPertemuan, kode] = args;
       }
 
-      if (!idPertemuan || !kode) await editOrSend(sock, msg, `Format: ${prefix}presensi <kode> atau ${prefix}presensi <id_pertemuan> <kode>`);
+      if (!idPertemuan || !kode) {
+        await editOrSend(sock, msg, `Format: ${prefix}presensi <kode> atau ${prefix}presensi <id_pertemuan> <kode>`);
+        return;
+      }
 
       const target = all.find((j) => String(j.id_pertemuan_presensi) === String(idPertemuan));
       if (target && isDone(target)) {
         await editOrSend(sock, msg, `Sudah presensi untuk ${target.nama_matakuliah} (Pertemuan Ke-${target.pertemuan_ke}).`);
+        return;
       }
 
       const csrf = await csrfPresensi(user.sessionHash, user.cookie);
@@ -119,6 +136,7 @@ export default {
       await editOrSend(sock, msg, `Presensi berhasil: ${nama}\n${submit.data.message || ''}`.trim());
     } catch (err) {
       const detail = err?.response?.data?.message || err.message;
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
       await editOrSend(sock, msg, `Gagal presensi: ${detail}`);
     }
   }

@@ -16,9 +16,9 @@ export function saveAiHistory(num, history) {
   try {
     const clean = String(num ?? '').replace(/[^0-9]/g, '');
     const serialized = JSON.stringify(history ?? []);
-    const row = db.prepare('INSERT OR REPLACE INTO ai_chats (phone, history) VALUES (?, ?)').get(clean, serialized);
-    return row.changed > 0 || row.changes > 0;
-  } catch { }
+    db.prepare('INSERT OR REPLACE INTO ai_chats (phone, history) VALUES (?, ?)').run(clean, serialized);
+    return true;
+  } catch { return false; }
 }
 
 export function clearAiHistory(num) {

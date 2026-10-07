@@ -28,12 +28,18 @@ export function loadRaisingUsers() {
 
 export function saveRaisingUsers(data) {
   const stmt = db.prepare('INSERT OR REPLACE INTO raising_users (phone, nim, password, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?, ?)');
+  const delStmt = db.prepare('DELETE FROM raising_users WHERE phone = ?');
   const insert = db.transaction((users) => {
     for (const [num, u] of Object.entries(users)) {
       stmt.run(num, u.nim, u.password, u.sessionHash, u.cookie, u.idMahasiswa);
     }
   });
   insert(data);
+}
+
+export function deleteRaisingUser(phone) {
+  const delStmt = db.prepare('DELETE FROM raising_users WHERE phone = ?');
+  delStmt.run(phone);
 }
 
 async function extractIdMahasiswa(url, cookie) {
@@ -91,7 +97,14 @@ export async function getStudentProfile(sessionHash, cookie, idMahasiswa, nim) {
     const { data } = await axios.get(`${BASE_URL}/${sessionHash}/api/akademik/get_data_verifikasi_ijazah?id_mahasiswa=${id}`, {
       headers: { Cookie: cookie, 'User-Agent': UA }
     });
-    return data?.data ?? data ?? null;
+    const d = data?.data ?? data ?? null;
+    if (!d) return null;
+    return {
+      nama_mahasiswa: d.nama_mahasiswa || d.nama || d.full_name || d.nama_lengkap || '-',
+      nama_prodi: d.nama_prodi || d.prodi || d.program_studi || d.nama_program_studi || '-',
+      angkatan: d.angkatan || d.tahun_masuk || '-',
+      status_mahasiswa: d.status_mahasiswa || d.status || '-'
+    };
   } catch {
     return null;
   }

@@ -14,7 +14,6 @@ import { getGroupProdi, getModeratorDefaultProdi, isAuthor, isModerator } from '
 import { initDb, migrateFromJson, migratePengumumanColumns } from './utils/db.js';
 import { startPengumumanScheduler, stopPengumumanScheduler } from './utils/pengumumanScheduler.js';
 
-// Init SQLite and migrate from JSON
 initDb();
 migratePengumumanColumns();
 migrateFromJson();
@@ -141,8 +140,12 @@ async function connectToWhatsApp() {
       const statusCode = lastDisconnect?.error?.output?.statusCode ?? null;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       log.warn(`Koneksi terputus (code: ${statusCode}) | Reconnect: ${shouldReconnect}`);
-      if (shouldReconnect) { log.info('Menghubungkan ulang...'); connectToWhatsApp(); }
-      else { log.error('Logged out. Hapus folder auth_info_baileys lalu jalankan ulang.'); }
+      if (shouldReconnect) {
+        log.info('Menghubungkan ulang...');
+        connectToWhatsApp();
+      } else {
+        log.error('Logged out. Hapus folder auth_info_baileys lalu jalankan ulang.');
+      }
     } else if (connection === 'open') {
       log.ok('Bot berhasil terhubung ke WhatsApp!');
       startPengumumanScheduler(sock);
@@ -212,5 +215,3 @@ async function connectToWhatsApp() {
 }
 
 connectToWhatsApp();
-
-// SIGUSR2 handler removed — nodemon handles it at parent level

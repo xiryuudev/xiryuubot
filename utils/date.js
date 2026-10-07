@@ -11,7 +11,51 @@ export const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth(
 
 export const keyOfDate = (iso) => dateKey(new Date(`${iso}T00:00:00`));
 
-export const filterByDate = (list, date) => {
+export const filterByDate = (list, date, when = 'hari ini') => {
+  const want = when.toLowerCase();
+  if (want === 'full') return list;
+
+  if (['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'].includes(want)) {
+    const targetDay = DAYS.indexOf(want.charAt(0).toUpperCase() + want.slice(1));
+    return list.filter((j) => {
+      const d = new Date(`${j.tanggal_pertemuan_presensi}T00:00:00`);
+      return d.getDay() === targetDay;
+    });
+  }
+
+  if (want === 'besok') {
+    const tom = new Date(date);
+    tom.setDate(tom.getDate() + 1);
+    const key = dateKey(tom);
+    return list.filter((j) => keyOfDate(j.tanggal_pertemuan_presensi) === key);
+  }
+
+  if (want === 'minggu ini') {
+    const start = new Date(date);
+    start.setDate(start.getDate() - start.getDay());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const startKey = dateKey(start);
+    const endKey = dateKey(end);
+    return list.filter((j) => {
+      const k = keyOfDate(j.tanggal_pertemuan_presensi);
+      return k >= startKey && k <= endKey;
+    });
+  }
+
+  if (want === 'minggu depan') {
+    const start = new Date(date);
+    start.setDate(start.getDate() - start.getDay() + 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const startKey = dateKey(start);
+    const endKey = dateKey(end);
+    return list.filter((j) => {
+      const k = keyOfDate(j.tanggal_pertemuan_presensi);
+      return k >= startKey && k <= endKey;
+    });
+  }
+
   const key = dateKey(date);
   return list.filter((j) => keyOfDate(j.tanggal_pertemuan_presensi) === key);
 };
@@ -33,3 +77,5 @@ const nowFmt = new Intl.DateTimeFormat('id-ID', {
 export const formatChatTime = (ts) => `${chatFmt.format(new Date(Number(ts) * 1000))} WIB`;
 
 export const formatNow = () => nowFmt.format(new Date());
+
+export const getWeekday = (d) => DAYS[d.getDay()];

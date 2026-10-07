@@ -9,6 +9,18 @@ export default {
   type: 'admin',
   visibility: 'admin',
   async run({ sock, msg, prefix }) {
+    if (args?.[0]?.toLowerCase() === 'help') {
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      const helpText = `🔄 *Command: .restart*
+Fungsi: Restart bot (hanya author).
+
+Cara pakai:
+- \`.restart\` — Restart bot dalam 3 detik (nodemon akan menjalankannya ulang)`;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      return;
+    }
+
     const sender = senderNumber(msg);
 
     if (!isAuthor(sender)) {

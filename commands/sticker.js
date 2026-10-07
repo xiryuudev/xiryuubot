@@ -23,21 +23,21 @@ async function mediaToSticker(buffer, mimetype) {
   await fs.promises.writeFile(inPath, buffer);
 
   let args;
-    if (mimetype.startsWith('video/')) {
-      args = [
-        '-i', inPath,
-        '-vf', 'scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000',
-        '-t', '3', '-c:v', 'libwebp', '-lossless', '0', '-compression_level', '6',
-        '-loop', '0', '-preset', 'default', '-an', '-vsync', '0', '-y', outPath
-      ];
-    } else {
-      args = [
-        '-i', inPath,
-        '-vf', 'scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000',
-        '-c:v', 'libwebp', '-lossless', '0', '-compression_level', '6',
-        '-preset', 'default', '-y', outPath
-      ];
-    }
+  if (mimetype.startsWith('video/')) {
+    args = [
+      '-i', inPath,
+      '-vf', 'scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000',
+      '-t', '3', '-c:v', 'libwebp', '-lossless', '0', '-compression_level', '6',
+      '-loop', '0', '-preset', 'default', '-an', '-vsync', '0', '-y', outPath
+    ];
+  } else {
+    args = [
+      '-i', inPath,
+      '-vf', 'scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000',
+      '-c:v', 'libwebp', '-lossless', '0', '-compression_level', '6',
+      '-preset', 'default', '-y', outPath
+    ];
+  }
 
   await runFfmpeg(args);
   await fs.promises.unlink(inPath).catch(() => {});
@@ -48,14 +48,12 @@ async function mediaToSticker(buffer, mimetype) {
 }
 
 function getTargetMediaMessage(msg) {
-  // 1. Check if replying to a message with media
   if (msg.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
     const quoted = normalizeMessageContent(msg.message.extendedTextMessage.contextInfo.quotedMessage);
     if (quoted?.imageMessage) return { ...quoted.imageMessage, _type: 'image', _quoted: true, _key: msg.message.extendedTextMessage.contextInfo.stanzaId };
     if (quoted?.videoMessage) return { ...quoted.videoMessage, _type: 'video', _quoted: true, _key: msg.message.extendedTextMessage.contextInfo.stanzaId };
   }
 
-  // 2. Check direct message media
   const direct = normalizeMessageContent(msg.message);
   if (direct?.imageMessage) return { ...direct.imageMessage, _type: 'image' };
   if (direct?.videoMessage) return { ...direct.videoMessage, _type: 'video' };
@@ -81,6 +79,23 @@ export default {
   type: 'main',
   visibility: 'global',
   async run({ sock, msg, args }) {
+    if (args[0]?.toLowerCase() === 'help') {
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      const helpText = `🎨 *Command: .sticker* (alias: .s)
+Fungsi: Convert gambar/video jadi sticker WebP (512x512, aspect ratio terjaga, background transparan).
+
+Cara pakai:
+- \`.sticker\` atau \`.s\` (reply gambar/video) — Buat sticker dari media yang di-reply
+- Support once-view media (view-once image/video)
+- Video maksimal 3 detik
+- Landscape/portrait otomatis pad transparan 512x512 (tidak crop)
+
+Contoh: Reply foto dengan \`.s\` atau \`.sticker\``;
+      await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      return;
+    }
+
     const target = getTargetMediaMessage(msg);
     if (!target) {
       await editOrSend(sock, msg, 'Reply gambar/video dengan .sticker atau .s');
@@ -92,7 +107,6 @@ export default {
       return;
     }
 
-    // React ⏳
     await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
 
     try {
@@ -100,12 +114,11 @@ export default {
       const buffer = await downloadMediaMessage(dlMsg, 'buffer', {});
       const stickerBuffer = await mediaToSticker(buffer, target.mimetype || 'image/jpeg');
       await sock.sendMessage(msg.key.remoteJid, { sticker: stickerBuffer }, { quoted: msg });
-      // React ✅
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
     } catch (err) {
       console.error('[sticker] Error:', err);
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-      await editOrSend(sock, msg, `❌ Gagal buat sticker: ${err.message}`);
+      await editOrSend(sock, msg, `Gagal buat sticker: ${err.message}`);
     }
   }
 };
