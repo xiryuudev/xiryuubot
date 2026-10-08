@@ -17,7 +17,6 @@ export function loadRaisingUsers() {
   for (const r of rows) {
     users[r.phone] = {
       nim: r.nim,
-      password: r.password,
       sessionHash: r.session_hash,
       cookie: r.cookie,
       idMahasiswa: r.id_mahasiswa
@@ -27,11 +26,11 @@ export function loadRaisingUsers() {
 }
 
 export function saveRaisingUsers(data) {
-  const stmt = db.prepare('INSERT OR REPLACE INTO raising_users (phone, nim, password, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?, ?)');
+  const stmt = db.prepare('INSERT OR REPLACE INTO raising_users (phone, nim, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?)');
   const delStmt = db.prepare('DELETE FROM raising_users WHERE phone = ?');
   const insert = db.transaction((users) => {
     for (const [num, u] of Object.entries(users)) {
-      stmt.run(num, u.nim, u.password, u.sessionHash, u.cookie, u.idMahasiswa);
+      stmt.run(num, u.nim, u.sessionHash, u.cookie, u.idMahasiswa);
     }
   });
   insert(data);
@@ -125,7 +124,7 @@ export async function getDpaInfo(sessionHash, cookie) {
 export async function getValidSession(whatsappNumber) {
   const users = loadRaisingUsers();
   const user = users[whatsappNumber];
-  if (!user) throw new Error('Nomor WhatsApp belum terdaftar di RAISING. Minta admin menambahkan akun Anda.');
+  if (!user) throw new Error('Nomor WhatsApp belum terdaftar di RAISING. Jalankan .raising add <nim> <password> untuk daftar.');
 
   try {
     const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
@@ -141,14 +140,5 @@ export async function getValidSession(whatsappNumber) {
     }
   } catch {}
 
-  const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(user.nim, user.password);
-  const [profile, dpa] = await Promise.all([
-    getStudentProfile(sessionHash, cookie, idMahasiswa, user.nim),
-    getDpaInfo(sessionHash, cookie)
-  ]);
-
-  const updated = { ...user, sessionHash, cookie, idMahasiswa, profile, dpa };
-  users[whatsappNumber] = updated;
-  saveRaisingUsers(users);
-  return updated;
+  throw new Error('Session RAISING expired/ko kosong. Jalankan .raising add <nim> <password> ulang untuk refresh session.');
 }

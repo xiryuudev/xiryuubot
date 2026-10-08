@@ -28,7 +28,7 @@ function formatDPA(dpa) {
 
 export default {
   name: 'raising',
-  description: 'Info RAISING (mahasiswa) + kelola akun (admin): raising add|list|edit|delete|help',
+  description: 'Info RAISING (mahasiswa) + kelola akun: raising add|list|edit|delete|help',
   type: 'main',
   visibility: 'mahasiswa',
   async run({ sock, msg, args, prefix }) {
@@ -39,105 +39,72 @@ export default {
     if (sub === 'help') {
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
       const helpText = `🎓 *Command: .raising*
-Fungsi: Info akun RAISING (mahasiswa) + kelola akun (admin).
+Fungsi: Info akun RAISING + kelola akun sendiri.
 
-Cara pakai (Mahasiswa):
+Cara pakai:
 - \`.raising\` — Info akun RAISING (NIM, profil, DPA, session)
+- \`.raising add <nim> <password>\` — Tambah/update akun RAISING sendiri
+- \`.raising delete\` — Hapus akun RAISING sendiri
 
-Cara pakai (Admin):
-- \`.raising add <no_wa> <nim> <password>\` — Tambah akun RAISING
-- \`.raising list\` — Lihat daftar akun RAISING terdaftar
-- \`.raising edit <no_wa> <nim_baru> <password_baru>\` — Update akun
-- \`.raising delete <no_wa>\` — Hapus akun RAISING (persisten di SQLite)
+*Catatan:* Password TIDAK disimpan. Hanya session & cookie.
+Gagal session? Jalankan \`.raising add\` ulang untuk refresh.
 
-Contoh: \`.raising\`, \`.raising add 628xxx 263100476 pass123\``;
+Contoh: \`.raising\`, \`.raising add 263100476 pass123\``;
       await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
       return;
     }
 
-    // Admin subcommands
-    if (isAdmin && ['add', 'list', 'users', 'edit', 'delete', 'del', 'remove'].includes(sub)) {
-      const users = loadRaisingUsers();
+    // User subcommands (any user)
+    const users = loadRaisingUsers();
+    const senderClean = clean(sender);
 
-      if (sub === 'add') {
-        const [noWa, nim, password] = args.slice(1);
-        if (!noWa || !nim || !password) {
-          await editOrSend(sock, msg, `Format: ${prefix}raising add <no_wa> <nim> <password>`);
-          return;
-        }
-        const num = clean(noWa);
-        await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
-        try {
-          const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
-          users[num] = { nim, password, sessionHash, cookie, idMahasiswa, createdAt: new Date().toISOString() };
-          saveRaisingUsers(users);
-          await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
-          await editOrSend(sock, msg, `User ${num} (NIM: ${nim}, ID: ${idMahasiswa || 'N/A'}) berhasil ditambahkan.`);
-        } catch (err) {
-          await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-          await editOrSend(sock, msg, `Gagal login: ${err.message}`);
-        }
+    if (sub === 'add') {
+      const [nim, password] = args.slice(1);
+      if (!nim || !password) {
+        await editOrSend(sock, msg, `Format: ${prefix}raising add <nim> <password>`);
         return;
       }
-
-      if (sub === 'list' || sub === 'users') {
-        const keys = Object.keys(users);
-        if (!keys.length) {
-          await editOrSend(sock, msg, 'Belum ada user RAISING terdaftar.');
-          return;
-        }
-        let text = `Daftar User RAISING (${keys.length})\n\n`;
-        for (const num of keys) {
-          const u = users[num];
-          text += `- ${num}\n  NIM: ${u.nim} (ID: ${u.idMahasiswa || '-'})\n  Ditambah: ${new Date(u.createdAt).toLocaleString('id-ID')}\n\n`;
-        }
-        await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      try {
+        const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
+        users[senderClean] = { nim, sessionHash, cookie, idMahasiswa, createdAt: new Date().toISOString() };
+        saveRaisingUsers(users);
         await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
-        await editOrSend(sock, msg, text.trimEnd());
-        return;
+        await editOrSend(sock, msg, `Akun RAISING berhasil ditambahkan/diperbarui (NIM: ${nim}, ID: ${idMahasiswa || 'N/A'}).`);
+      } catch (err) {
+        await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
+        await editOrSend(sock, msg, `Gagal login: ${err.message}`);
       }
+      return;
+    }
 
-      if (sub === 'edit') {
-        const [noWa, nim, password] = args.slice(1);
-        if (!noWa || !nim || !password) {
-          await editOrSend(sock, msg, `Format: ${prefix}raising edit <no_wa> <nim_baru> <password_baru>`);
-          return;
-        }
-        const num = clean(noWa);
-        if (!users[num]) {
-          await editOrSend(sock, msg, `User ${num} tidak ditemukan.`);
-          return;
-        }
-        await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
-        try {
-          const { sessionHash, cookie, idMahasiswa } = await loginAndGetSession(nim, password);
-          users[num] = { nim, password, sessionHash, cookie, idMahasiswa, createdAt: users[num].createdAt, updatedAt: new Date().toISOString() };
-          saveRaisingUsers(users);
-          await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
-          await editOrSend(sock, msg, `User ${num} diperbarui ke NIM ${nim} (ID: ${idMahasiswa || 'N/A'}).`);
-        } catch (err) {
-          await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-          await editOrSend(sock, msg, `Gagal re-login: ${err.message}`);
-        }
+    if (sub === 'delete') {
+      if (!users[senderClean]) {
+        await editOrSend(sock, msg, 'Anda belum punya akun RAISING terdaftar.');
         return;
       }
+      deleteRaisingUser(senderClean);
+      await editOrSend(sock, msg, 'Akun RAISING Anda berhasil dihapus.');
+      return;
+    }
 
-      if (sub === 'delete' || sub === 'del' || sub === 'remove') {
-        const num = clean(args[1]);
-        if (!num) {
-          await editOrSend(sock, msg, `Format: ${prefix}raising delete <no_wa>`);
-          return;
-        }
-        const users = loadRaisingUsers();
-        if (!users[num]) {
-          await editOrSend(sock, msg, `User ${num} tidak ditemukan.`);
-          return;
-        }
-        deleteRaisingUser(num);
-        await editOrSend(sock, msg, `User ${num} berhasil dihapus.`);
+    // Admin subcommands
+    if (isAdmin && ['list', 'users'].includes(sub)) {
+      const keys = Object.keys(users);
+      if (!keys.length) {
+        await editOrSend(sock, msg, 'Belum ada user RAISING terdaftar.');
         return;
       }
+      let text = `Daftar User RAISING (${keys.length})\n\n`;
+      for (const num of keys) {
+        const u = users[num];
+        text += `- ${num}\n  NIM: ${u.nim} (ID: ${u.idMahasiswa || '-'})\n  Ditambah: ${new Date(u.createdAt).toLocaleString('id-ID')}\n\n`;
+      }
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
+      await editOrSend(sock, msg, text.trimEnd());
+      return;
     }
 
     // Info display (mahasiswa + admin)
@@ -158,10 +125,7 @@ Contoh: \`.raising\`, \`.raising add 628xxx 263100476 pass123\``;
       // Admin hint
       if (isAdmin) {
         lines.push(`\n🔧 *ADMIN COMMANDS*`);
-        lines.push(`${prefix}raising add <no_wa> <nim> <password>`);
         lines.push(`${prefix}raising list`);
-        lines.push(`${prefix}raising edit <no_wa> <nim> <password>`);
-        lines.push(`${prefix}raising delete <no_wa>`);
       }
 
       await editOrSend(sock, msg, lines.join('\n'));

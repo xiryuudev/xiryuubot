@@ -134,11 +134,11 @@ export function migrateFromJson() {
   if (fs.existsSync(raisingFile)) {
     try {
       const raising = JSON.parse(fs.readFileSync(raisingFile, 'utf8'));
-      const stmt = db.prepare('INSERT OR IGNORE INTO raising_users (phone, nim, password, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?, ?)');
+      const stmt = db.prepare('INSERT OR IGNORE INTO raising_users (phone, nim, session_hash, cookie, id_mahasiswa) VALUES (?, ?, ?, ?, ?)');
       const insert = db.transaction((data) => {
         for (const [num, r] of Object.entries(data)) {
           const clean = String(num).replace(/[^0-9]/g, '');
-          stmt.run(clean, r.nim ?? '', r.password ?? '', r.sessionHash ?? '', r.cookie ?? '', r.idMahasiswa ?? '');
+          stmt.run(clean, r.nim ?? '', r.sessionHash ?? '', r.cookie ?? '', r.idMahasiswa ?? '');
         }
       });
       insert(raising);
