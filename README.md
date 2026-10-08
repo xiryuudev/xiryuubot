@@ -106,6 +106,16 @@ On first start the bot prints a pairing code. Open WhatsApp on the bot's phone, 
 - Instagram requires a `cookies.txt` (Netscape format) at the path in `DL_COOKIES`. Export one from a logged-in browser session. If the session expires, the bot logs back in with `IG_USERNAME` / `IG_PASSWORD` and refreshes the file automatically
 - `DL_PROXY` (optional) passes a proxy to `yt-dlp` for sites that block your server IP
 
+## Privacy
+
+**No personal data or passwords are stored in the database.**
+
+- RAISING login: NIM and password are used **once** to obtain a session cookie. Only `nim`, `session_hash`, `cookie`, and `id_mahasiswa` are saved. The password is never written to disk.
+- WhatsApp numbers and message history (for `.ai`) are stored locally in SQLite for bot operation only.
+- No data leaves your server except: WhatsApp traffic (Baileys), RAISING portal requests, and AI provider calls (Groq/OpenAI-compatible endpoint).
+
+To review the full implementation, see the codebase: https://github.com/xiryuudev/xiryuubot
+
 ## Project layout
 
 ```

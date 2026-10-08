@@ -47,7 +47,8 @@ export default {
     text += `╭──❲ INFO BOT ❳\n`;
     text += `│ Nama Bot: ${config.BOT_NAME}\n`;
     text += `│ Author: ${config.ADMIN_NAME} (${config.AUTHOR_NUMBER})\n`;
-    text += `│ Contact Admin: ${config.ADMIN_NUMBER}\n`;
+    text += `│ Repo: https://github.com/xiryuudev/xiryuubot\n`;
+    text += `│ Privacy: Lihat codebase di repo (tidak simpan password/data pribadi)\n`;
     text += `│ Prefix: ${prefix}\n`;
     text += `│ Waktu: ${formatNow()} WIB\n`;
     text += `╰──────────⊱\n`;
