@@ -144,6 +144,7 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     let outputBuffer = '';
     let outputMsgKey = null;
     let isFirstChunk = true;
+    let firstSendPromise = null;
     let waitingForInput = false;
     let processEnded = false;
 
@@ -153,12 +154,24 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       const text = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
 
       if (isFirstChunk) {
-        const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+        // Lock synchronously BEFORE await — cegah race 2 chunk cepat
+        isFirstChunk = false;
+        firstSendPromise = sock.sendMessage(chatId, { text }, { quoted: msg });
+        const sent = await firstSendPromise;
+        firstSendPromise = null;
         outputMsgKey = sent.key;
         const session = terminalSessions.get(msgId);
         if (session) session.outputMsgKey = outputMsgKey;
         terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
-        isFirstChunk = false;
+        // Buffer mungkin bertambah selama send — edit sekali biar sinkron
+        const freshText = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
+        if (freshText !== text) {
+          try { await sock.sendMessage(chatId, { text: freshText, edit: outputMsgKey }); } catch {}
+        }
+      } else if (firstSendPromise) {
+        // Pesan pertama masih dikirim — cukup buffer, edit menyusul
+        const sent = await firstSendPromise;
+        try { await sock.sendMessage(chatId, { text, edit: sent.key }); } catch {}
       } else if (outputMsgKey) {
         try {
           await sock.sendMessage(chatId, { text, edit: outputMsgKey });
