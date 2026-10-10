@@ -195,8 +195,8 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       await sendOutputChunk(`\n[Error: ${err.message}]`, true);
     });
 
-    // Store process for input handling - keyed by outputMsgId for reply handling
-    terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgId: null });
+    // Store process for input handling - keyed by outputMsgKey.id for reply handling
+    terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgKey: null });
 
     // Timeout cleanup
     setTimeout(() => {
