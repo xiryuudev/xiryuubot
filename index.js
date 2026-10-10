@@ -142,6 +142,8 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     let outputMsgId = null;
     let isFirstChunk = true;
     let waitingForInput = false;
+    let lastEditTime = 0;
+    const EDIT_THROTTLE_MS = 1500; // min 1.5s between edits
 
     const sendOutputChunk = async (chunk, final = false) => {
       outputBuffer += chunk;
@@ -155,15 +157,29 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       if (isFirstChunk) {
         const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
         outputMsgId = sent.key.id;
+        const session = terminalSessions.get(msgId);
+        if (session) session.outputMsgId = outputMsgId;
         isFirstChunk = false;
       } else if (outputMsgId) {
-        await sock.sendMessage(chatId, { text, edit: outputMsgId });
+        const now = Date.now();
+        if (final || now - lastEditTime >= EDIT_THROTTLE_MS) {
+          try {
+            await sock.sendMessage(chatId, { text, edit: outputMsgId });
+            lastEditTime = now;
+          } catch (e) {
+            // Edit failed - send new message
+            const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+            outputMsgId = sent.key.id;
+            const session = terminalSessions.get(msgId);
+            if (session) session.outputMsgId = outputMsgId;
+          }
+        }
       }
     };
 
     proc.stdout.on('data', (data) => {
       const str = data.toString();
-      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)')) {
+      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
         waitingForInput = true;
       }
       sendOutputChunk(str);
@@ -183,8 +199,8 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       await sendOutputChunk(`\n[Error: ${err.message}]`, true);
     });
 
-    // Store process for input handling
-    terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgId });
+    // Store process for input handling - use outputMsgId as key once available
+    terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgId: null });
 
     // Timeout cleanup
     setTimeout(() => {
