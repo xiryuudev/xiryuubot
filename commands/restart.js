@@ -8,7 +8,7 @@ export default {
   description: 'Restart bot (author only)',
   type: 'admin',
   visibility: 'admin',
-  async run({ sock, msg, prefix }) {
+  async run({ sock, msg, args, prefix }) {
     if (args?.[0]?.toLowerCase() === 'help') {
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
       const helpText = `🔄 *Command: .restart*
