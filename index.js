@@ -197,6 +197,7 @@ async function connectToWhatsApp() {
 
       const sid = senderJid(msg);
       const { text } = getMessageInfo(msg.message);
+      const senderNum = senderNumber(msg);
 
       // Terminal command ($...) - author only
       if (await handleTerminalCommand(sock, msg, senderNum, text)) continue;
@@ -209,7 +210,6 @@ async function connectToWhatsApp() {
         commandName = args.shift()?.toLowerCase();
       }
 
-      const senderNum = senderNumber(msg);
       const isAuthorUser = isAuthor(senderNum) || senderNum === ADMIN_NUMBER_CLEAN;
       const isModUser = isModerator(senderNum);
       const isMaterialGroup = groupName && /penyimpanan\s+materi|materi\s+storage/i.test(groupName);
