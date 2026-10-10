@@ -13,6 +13,10 @@ import { addTaskFromReport } from './utils/tasks.js';
 import { getGroupProdi, getModeratorDefaultProdi, isAuthor, isModerator } from './utils/moderators.js';
 import { initDb, migrateFromJson, migratePengumumanColumns } from './utils/db.js';
 import { startPengumumanScheduler, stopPengumumanScheduler } from './utils/pengumumanScheduler.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 initDb();
 migratePengumumanColumns();
@@ -114,6 +118,30 @@ function printChatLog(msg, extra = {}) {
   console.log(`${C.cyan}└${line}${C.reset}`);
 }
 
+async function handleTerminalCommand(sock, msg, senderNum, text) {
+  if (!isAuthor(senderNum) && senderNum !== ADMIN_NUMBER_CLEAN) return false;
+  if (!text.startsWith('$')) return false;
+
+  const cmd = text.slice(1).trim();
+  if (!cmd) return true;
+
+  try {
+    log.ok(`Author menjalankan terminal: ${cmd}`);
+    const { stdout, stderr } = await execAsync(cmd, {
+      cwd: process.cwd(),
+      timeout: 120000,
+      maxBuffer: 1024 * 1024 * 10
+    });
+    let output = stdout || stderr || '(tidak ada output)';
+    if (output.length > 4000) output = output.slice(0, 4000) + '\n... [output dipotong]';
+    await sock.sendMessage(msg.key.remoteJid, { text: `💻 *Terminal Output*\n\`\`\`\n${output}\n\`\`\`` }, { quoted: msg });
+  } catch (err) {
+    const errMsg = err.stdout || err.stderr || err.message;
+    await sock.sendMessage(msg.key.remoteJid, { text: `❌ *Terminal Error*\n\`\`\`\n${errMsg}\n\`\`\`` }, { quoted: msg });
+  }
+  return true;
+}
+
 async function connectToWhatsApp() {
   await loadCommands();
 
@@ -169,6 +197,10 @@ async function connectToWhatsApp() {
 
       const sid = senderJid(msg);
       const { text } = getMessageInfo(msg.message);
+
+      // Terminal command ($...) - author only
+      if (await handleTerminalCommand(sock, msg, senderNum, text)) continue;
+
       const usedPrefix = typeof text === 'string' ? PREFIXES.find((p) => text.startsWith(p)) : null;
       let commandName = null;
       let args = [];
@@ -209,9 +241,9 @@ async function connectToWhatsApp() {
             await sock.sendMessage(msg.key.remoteJid, { text: `Terjadi kesalahan saat menjalankan command ${usedPrefix}${commandName}` }, { quoted: msg });
           }
         }
-      }
-    }
-  });
-}
+              }
+            }
+          });
+        }
 
-connectToWhatsApp();
+        connectToWhatsApp();
