@@ -142,8 +142,6 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     let outputMsgId = null;
     let isFirstChunk = true;
     let waitingForInput = false;
-    let lastEditTime = 0;
-    const EDIT_THROTTLE_MS = 1500; // min 1.5s between edits
 
     const sendOutputChunk = async (chunk, final = false) => {
       outputBuffer += chunk;
@@ -159,20 +157,18 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
         outputMsgId = sent.key.id;
         const session = terminalSessions.get(msgId);
         if (session) session.outputMsgId = outputMsgId;
+        terminalSessions.set(outputMsgId, { proc, chatId, senderNum, outputMsgId });
         isFirstChunk = false;
       } else if (outputMsgId) {
-        const now = Date.now();
-        if (final || now - lastEditTime >= EDIT_THROTTLE_MS) {
-          try {
-            await sock.sendMessage(chatId, { text, edit: outputMsgId });
-            lastEditTime = now;
-          } catch (e) {
-            // Edit failed - send new message
-            const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
-            outputMsgId = sent.key.id;
-            const session = terminalSessions.get(msgId);
-            if (session) session.outputMsgId = outputMsgId;
-          }
+        try {
+          await sock.sendMessage(chatId, { text, edit: outputMsgId });
+        } catch (e) {
+          // Edit failed - send new message
+          const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+          outputMsgId = sent.key.id;
+          const session = terminalSessions.get(msgId);
+          if (session) session.outputMsgId = outputMsgId;
+          terminalSessions.set(outputMsgId, { proc, chatId, senderNum, outputMsgId });
         }
       }
     };
@@ -199,7 +195,7 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       await sendOutputChunk(`\n[Error: ${err.message}]`, true);
     });
 
-    // Store process for input handling - use outputMsgId as key once available
+    // Store process for input handling - keyed by outputMsgId for reply handling
     terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgId: null });
 
     // Timeout cleanup
