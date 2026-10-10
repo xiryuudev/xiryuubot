@@ -139,7 +139,7 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     });
 
     let outputBuffer = '';
-    let outputMsgId = null;
+    let outputMsgKey = null;
     let isFirstChunk = true;
     let waitingForInput = false;
 
@@ -154,21 +154,21 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
 
       if (isFirstChunk) {
         const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
-        outputMsgId = sent.key.id;
+        outputMsgKey = sent.key;
         const session = terminalSessions.get(msgId);
-        if (session) session.outputMsgId = outputMsgId;
-        terminalSessions.set(outputMsgId, { proc, chatId, senderNum, outputMsgId });
+        if (session) session.outputMsgKey = outputMsgKey;
+        terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
         isFirstChunk = false;
-      } else if (outputMsgId) {
+      } else if (outputMsgKey) {
         try {
-          await sock.sendMessage(chatId, { text, edit: outputMsgId });
+          await sock.sendMessage(chatId, { text, edit: outputMsgKey });
         } catch (e) {
           // Edit failed - send new message
           const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
-          outputMsgId = sent.key.id;
+          outputMsgKey = sent.key;
           const session = terminalSessions.get(msgId);
-          if (session) session.outputMsgId = outputMsgId;
-          terminalSessions.set(outputMsgId, { proc, chatId, senderNum, outputMsgId });
+          if (session) session.outputMsgKey = outputMsgKey;
+          terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
         }
       }
     };
