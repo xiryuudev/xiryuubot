@@ -13,10 +13,6 @@ import { addTaskFromReport } from './utils/tasks.js';
 import { getGroupProdi, getModeratorDefaultProdi, isAuthor, isModerator } from './utils/moderators.js';
 import { initDb, migrateFromJson, migratePengumumanColumns } from './utils/db.js';
 import { startPengumumanScheduler, stopPengumumanScheduler } from './utils/pengumumanScheduler.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 initDb();
 migratePengumumanColumns();
@@ -145,7 +141,6 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     let outputMsgKey = null;
     let isFirstChunk = true;
     let firstSendPromise = null;
-    let waitingForInput = false;
     let processEnded = false;
 
     const sendOutput = async (final = false) => {
@@ -154,7 +149,6 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       const text = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
 
       if (isFirstChunk) {
-        // Lock synchronously BEFORE await — cegah race 2 chunk cepat
         isFirstChunk = false;
         firstSendPromise = sock.sendMessage(chatId, { text }, { quoted: msg });
         const sent = await firstSendPromise;
@@ -163,13 +157,11 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
         const session = terminalSessions.get(msgId);
         if (session) session.outputMsgKey = outputMsgKey;
         terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
-        // Buffer mungkin bertambah selama send — edit sekali biar sinkron
         const freshText = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
         if (freshText !== text) {
           try { await sock.sendMessage(chatId, { text: freshText, edit: outputMsgKey }); } catch {}
         }
       } else if (firstSendPromise) {
-        // Pesan pertama masih dikirim — cukup buffer, edit menyusul
         const sent = await firstSendPromise;
         try { await sock.sendMessage(chatId, { text, edit: sent.key }); } catch {}
       } else if (outputMsgKey) {
@@ -195,9 +187,6 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     proc.stdout.on('data', async (data) => {
       const str = data.toString();
       if (str.length) log.info(`[stdout] ${str.slice(0, 200)}`);
-      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
-        waitingForInput = true;
-      }
       appendOutput(str);
       await sendOutput();
     });
@@ -205,29 +194,22 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     proc.stderr.on('data', async (data) => {
       const str = data.toString();
       if (str.length) log.info(`[stderr] ${str.slice(0, 200)}`);
-      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
-        waitingForInput = true;
-      }
       appendOutput(str);
       await sendOutput();
     });
 
     proc.on('close', async (code) => {
-      waitingForInput = false;
       processEnded = true;
       await sendOutput(true);
     });
 
     proc.on('error', async (err) => {
-      waitingForInput = false;
       processEnded = true;
       await sendOutput(true);
     });
 
-    // Store process for input handling - keyed by outputMsgKey.id for reply handling
     terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgKey: null });
 
-    // Timeout cleanup
     setTimeout(() => {
       if (terminalSessions.has(msgId)) {
         const session = terminalSessions.get(msgId);
@@ -365,9 +347,9 @@ async function connectToWhatsApp() {
             await sock.sendMessage(msg.key.remoteJid, { text: `Terjadi kesalahan saat menjalankan command ${usedPrefix}${commandName}` }, { quoted: msg });
           }
         }
-              }
-            }
-          });
-        }
+      }
+    }
+  });
+}
 
-        connectToWhatsApp();
+connectToWhatsApp();
