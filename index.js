@@ -133,12 +133,12 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
 
     const { spawn } = await import('child_process');
     const isSudo = cmd.trim().startsWith('sudo ');
-    const finalCmd = isSudo ? cmd.replace(/^sudo\s+/, 'sudo -S ') : cmd;
+    const finalCmd = isSudo ? cmd.replace(/^sudo\s+/, 'sudo -S -p "" ') : cmd;
 
     const proc = spawn(finalCmd, {
       shell: true,
       cwd: process.cwd(),
-      env: { ...process.env, TERM: 'dumb' }
+      env: { ...process.env, TERM: 'dumb', SUDO_ASKPASS: '/bin/false' }
     });
 
     let outputBuffer = '';
@@ -155,8 +155,7 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
         outputBuffer = outputBuffer.slice(-3500);
       }
 
-      const prefix = final ? '💻 *Terminal Output*' : '💻 *Terminal Output*';
-      const text = `${prefix}\n\`\`\`\n${outputBuffer}\n\`\`\``;
+      const text = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
 
       if (isFirstChunk) {
         const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
@@ -179,33 +178,97 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       }
     };
 
-    // Small delay to batch quick command output into single message
+    // For commands that produce quick output, flush more aggressively
     let flushTimeout = null;
+    let hasOutput = false;
     const scheduleFlush = (chunk, final = false) => {
+      hasOutput = true;
       clearTimeout(flushTimeout);
       if (final) {
         sendOutputChunk(chunk, true);
       } else {
-        flushTimeout = setTimeout(() => sendOutputChunk(chunk), 200);
+        // Flush after 100ms of no new output, or immediately if buffer is large
+        if (outputBuffer.length + chunk.length > 2000) {
+          sendOutputChunk(chunk);
+        } else {
+          flushTimeout = setTimeout(() => sendOutputChunk(chunk), 100);
+        }
       }
     };
 
-    proc.stdout.on('data', (data) => {
+    proc.stdout.on('data', async (data) => {
+      const str = data.toString();
+      if (str.length) log.info(`[stdout] ${str.slice(0, 200)}`);
+      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
+        waitingForInput = true;
+      }
+      // Stream output immediately, batch into single message via edit
+      outputBuffer += str;
+      if (outputBuffer.length > 4000) {
+        outputBuffer = outputBuffer.slice(-3500);
+      }
+      if (isFirstChunk) {
+        // First chunk - send initial message
+        const text = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
+        const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+        outputMsgKey = sent.key;
+        const session = terminalSessions.get(msgId);
+        if (session) session.outputMsgKey = outputMsgKey;
+        terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
+        isFirstChunk = false;
+      } else if (outputMsgKey) {
+        try {
+          await sock.sendMessage(chatId, { text: `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``, edit: outputMsgKey });
+        } catch (e) {
+          // Edit failed - send new message
+          const sent = await sock.sendMessage(chatId, { text: `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\`` }, { quoted: msg });
+          outputMsgKey = sent.key;
+          const session = terminalSessions.get(msgId);
+          if (session) session.outputMsgKey = outputMsgKey;
+          terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
+        }
+      }
+    });
+
+    proc.stderr.on('data', async (data) => {
       const str = data.toString();
       if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
         waitingForInput = true;
       }
-      scheduleFlush(str);
-    });
-
-    proc.stderr.on('data', (data) => {
-      scheduleFlush(data.toString());
+      // Stream stderr immediately too
+      outputBuffer += str;
+      if (outputBuffer.length > 4000) {
+        outputBuffer = outputBuffer.slice(-3500);
+      }
+      if (isFirstChunk) {
+        const text = `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``;
+        const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+        outputMsgKey = sent.key;
+        const session = terminalSessions.get(msgId);
+        if (session) session.outputMsgKey = outputMsgKey;
+        terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
+        isFirstChunk = false;
+      } else if (outputMsgKey) {
+        try {
+          await sock.sendMessage(chatId, { text: `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\``, edit: outputMsgKey });
+        } catch (e) {
+          const sent = await sock.sendMessage(chatId, { text: `💻 *Terminal Output*\n\`\`\`\n${outputBuffer}\n\`\`\`` }, { quoted: msg });
+          outputMsgKey = sent.key;
+          const session = terminalSessions.get(msgId);
+          if (session) session.outputMsgKey = outputMsgKey;
+          terminalSessions.set(outputMsgKey.id, { proc, chatId, senderNum, outputMsgKey });
+        }
+      }
     });
 
     proc.on('close', async (code) => {
       waitingForInput = false;
       processEnded = true;
       clearTimeout(flushTimeout);
+      // Send any remaining buffered output
+      if (hasOutput) {
+        await sendOutputChunk('', true);
+      }
       await sendOutputChunk(`\n[Exit code: ${code}]`, true);
     });
 
@@ -213,6 +276,9 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       waitingForInput = false;
       processEnded = true;
       clearTimeout(flushTimeout);
+      if (hasOutput) {
+        await sendOutputChunk('', true);
+      }
       await sendOutputChunk(`\n[Error: ${err.message}]`, true);
     });
 
