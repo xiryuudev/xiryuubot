@@ -132,7 +132,10 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     log.ok(`Author menjalankan terminal: ${cmd}`);
 
     const { spawn } = await import('child_process');
-    const proc = spawn(cmd, {
+    const isSudo = cmd.trim().startsWith('sudo ');
+    const finalCmd = isSudo ? cmd.replace(/^sudo\s+/, 'sudo -S ') : cmd;
+
+    const proc = spawn(finalCmd, {
       shell: true,
       cwd: process.cwd(),
       env: { ...process.env, TERM: 'dumb' }
@@ -142,14 +145,17 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     let outputMsgKey = null;
     let isFirstChunk = true;
     let waitingForInput = false;
+    let processEnded = false;
 
     const sendOutputChunk = async (chunk, final = false) => {
+      if (processEnded && !final) return;
+      
       outputBuffer += chunk;
       if (outputBuffer.length > 4000) {
         outputBuffer = outputBuffer.slice(-3500);
       }
 
-      const prefix = final ? '💻 *Terminal Output (selesai)*' : '💻 *Terminal Output (streaming)*';
+      const prefix = final ? '💻 *Terminal Output*' : '💻 *Terminal Output*';
       const text = `${prefix}\n\`\`\`\n${outputBuffer}\n\`\`\``;
 
       if (isFirstChunk) {
@@ -173,25 +179,40 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
       }
     };
 
+    // Small delay to batch quick command output into single message
+    let flushTimeout = null;
+    const scheduleFlush = (chunk, final = false) => {
+      clearTimeout(flushTimeout);
+      if (final) {
+        sendOutputChunk(chunk, true);
+      } else {
+        flushTimeout = setTimeout(() => sendOutputChunk(chunk), 200);
+      }
+    };
+
     proc.stdout.on('data', (data) => {
       const str = data.toString();
       if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)') || str.includes(':: Proceed with installation?') || str.includes(':: Download complete') || str.includes('Press Enter') || str.includes('[Y/n]') || str.includes(':: ') || str.includes('(Y/n)') || str.includes('[y/N]') || str.includes('y/N]')) {
         waitingForInput = true;
       }
-      sendOutputChunk(str);
+      scheduleFlush(str);
     });
 
     proc.stderr.on('data', (data) => {
-      sendOutputChunk(data.toString());
+      scheduleFlush(data.toString());
     });
 
     proc.on('close', async (code) => {
       waitingForInput = false;
+      processEnded = true;
+      clearTimeout(flushTimeout);
       await sendOutputChunk(`\n[Exit code: ${code}]`, true);
     });
 
     proc.on('error', async (err) => {
       waitingForInput = false;
+      processEnded = true;
+      clearTimeout(flushTimeout);
       await sendOutputChunk(`\n[Error: ${err.message}]`, true);
     });
 
