@@ -125,21 +125,101 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
   const cmd = text.slice(1).trim();
   if (!cmd) return true;
 
+  const chatId = msg.key.remoteJid;
+  const msgId = msg.key.id;
+
   try {
     log.ok(`Author menjalankan terminal: ${cmd}`);
-    const { stdout, stderr } = await execAsync(cmd, {
+
+    const { spawn } = await import('child_process');
+    const proc = spawn(cmd, {
+      shell: true,
       cwd: process.cwd(),
-      timeout: 120000,
-      maxBuffer: 1024 * 1024 * 10
+      env: { ...process.env, TERM: 'dumb' }
     });
-    let output = stdout || stderr || '(tidak ada output)';
-    if (output.length > 4000) output = output.slice(0, 4000) + '\n... [output dipotong]';
-    await sock.sendMessage(msg.key.remoteJid, { text: `💻 *Terminal Output*\n\`\`\`\n${output}\n\`\`\`` }, { quoted: msg });
+
+    let outputBuffer = '';
+    let outputMsgId = null;
+    let isFirstChunk = true;
+    let waitingForInput = false;
+
+    const sendOutputChunk = async (chunk, final = false) => {
+      outputBuffer += chunk;
+      if (outputBuffer.length > 4000) {
+        outputBuffer = outputBuffer.slice(-3500);
+      }
+
+      const prefix = final ? '💻 *Terminal Output (selesai)*' : '💻 *Terminal Output (streaming)*';
+      const text = `${prefix}\n\`\`\`\n${outputBuffer}\n\`\`\``;
+
+      if (isFirstChunk) {
+        const sent = await sock.sendMessage(chatId, { text }, { quoted: msg });
+        outputMsgId = sent.key.id;
+        isFirstChunk = false;
+      } else if (outputMsgId) {
+        await sock.sendMessage(chatId, { text, edit: outputMsgId });
+      }
+    };
+
+    proc.stdout.on('data', (data) => {
+      const str = data.toString();
+      if (str.includes('password') || str.includes('Password') || str.includes('[sudo]') || str.includes('passphrase') || str.includes('PIN') || str.includes('? [y/N]') || str.includes('(y/n)')) {
+        waitingForInput = true;
+      }
+      sendOutputChunk(str);
+    });
+
+    proc.stderr.on('data', (data) => {
+      sendOutputChunk(data.toString());
+    });
+
+    proc.on('close', async (code) => {
+      waitingForInput = false;
+      await sendOutputChunk(`\n[Exit code: ${code}]`, true);
+    });
+
+    proc.on('error', async (err) => {
+      waitingForInput = false;
+      await sendOutputChunk(`\n[Error: ${err.message}]`, true);
+    });
+
+    // Store process for input handling
+    terminalSessions.set(msgId, { proc, chatId, senderNum, outputMsgId });
+
+    // Timeout cleanup
+    setTimeout(() => {
+      if (terminalSessions.has(msgId)) {
+        const session = terminalSessions.get(msgId);
+        if (session.proc && !session.proc.killed) {
+          session.proc.kill('SIGTERM');
+        }
+        terminalSessions.delete(msgId);
+      }
+    }, 300000); // 5 min
+
   } catch (err) {
-    const errMsg = err.stdout || err.stderr || err.message;
-    await sock.sendMessage(msg.key.remoteJid, { text: `❌ *Terminal Error*\n\`\`\`\n${errMsg}\n\`\`\`` }, { quoted: msg });
+    await sock.sendMessage(chatId, { text: `❌ *Terminal Error*\n\`\`\`\n${err.message}\n\`\`\`` }, { quoted: msg });
   }
   return true;
+}
+
+// Terminal session storage for interactive input
+const terminalSessions = new Map();
+
+async function handleTerminalInput(sock, msg, senderNum, text) {
+  if (!msg.message?.extendedTextMessage?.contextInfo?.stanzaId) return false;
+
+  const repliedMsgId = msg.message.extendedTextMessage.contextInfo.stanzaId;
+  const session = terminalSessions.get(repliedMsgId);
+  if (!session) return false;
+  if (session.senderNum !== senderNum) return false;
+
+  const input = text.trim() + '\n';
+  if (session.proc && !session.proc.killed && session.proc.stdin.writable) {
+    session.proc.stdin.write(input);
+    return true;
+  }
+  return false;
 }
 
 async function connectToWhatsApp() {
@@ -201,6 +281,9 @@ async function connectToWhatsApp() {
 
       // Terminal command ($...) - author only
       if (await handleTerminalCommand(sock, msg, senderNum, text)) continue;
+
+      // Terminal input handling (reply to terminal output message)
+      if (await handleTerminalInput(sock, msg, senderNum, text)) continue;
 
       const usedPrefix = typeof text === 'string' ? PREFIXES.find((p) => text.startsWith(p)) : null;
       let commandName = null;
