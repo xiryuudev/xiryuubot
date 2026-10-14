@@ -110,7 +110,7 @@ Contoh: \`.jadwal hari ini\`, \`.jadwal full\`, \`.jadwal rabu\``;
       }
 
       let text;
-      if (when === 'full' || when === 'minggu ini' || when === 'minggu depan') {
+      if (when === 'full' || when === 'minggu ini' || when === 'minggu depan' || ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'].includes(when)) {
         text = formatFullJadwal(list, user.profile, user.dpa);
       } else {
         text = `👤 *DATA MAHASISWA*\n`;
