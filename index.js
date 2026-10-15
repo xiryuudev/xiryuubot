@@ -131,8 +131,11 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
     const isSudo = cmd.trim().startsWith('sudo ');
     const finalCmd = isSudo ? cmd.replace(/^sudo\s+/, 'sudo -S -p "" ') : cmd;
 
-    const proc = spawn(finalCmd, {
-      shell: true,
+    // Source .profile to get PATH with .local/bin, nvm, etc.
+    const sourcedCmd = `source ~/.profile 2>/dev/null || true; ${finalCmd}`;
+
+    const proc = spawn(sourcedCmd, {
+      shell: '/bin/bash',
       cwd: process.cwd(),
       env: { ...process.env, TERM: 'dumb', SUDO_ASKPASS: '/bin/false' }
     });
@@ -200,11 +203,15 @@ async function handleTerminalCommand(sock, msg, senderNum, text) {
 
     proc.on('close', async (code) => {
       processEnded = true;
+      if (!outputBuffer.trim()) {
+        outputBuffer = `(exit code: ${code})`;
+      }
       await sendOutput(true);
     });
 
     proc.on('error', async (err) => {
       processEnded = true;
+      appendOutput(`spawn error: ${err.message}\n`);
       await sendOutput(true);
     });
 
