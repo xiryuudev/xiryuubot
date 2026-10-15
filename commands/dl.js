@@ -27,10 +27,41 @@ function detectSite(url) {
 
 function runYtdlp(args) {
   return new Promise((resolve, reject) => {
-    execFile('yt-dlp', args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) reject(new Error((stderr || err.message).trim()));
-      else resolve(stdout.trim());
-    });
+    const tryPaths = ['/usr/bin/yt-dlp', '/home/alvian/.local/bin/yt-dlp'];
+    function tryNext(index) {
+      if (index >= tryPaths.length) {
+        reject(new Error('yt-dlp not found in any known path'));
+        return;
+      }
+      execFile(tryPaths[index], args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          tryNext(index + 1);
+        } else {
+          resolve(stdout.trim());
+        }
+      });
+    }
+    tryNext(0);
+  });
+}
+
+function runGalleryDl(args) {
+  return new Promise((resolve, reject) => {
+    const tryPaths = ['/usr/bin/gallery-dl', '/home/alvian/.local/bin/gallery-dl'];
+    function tryNext(index) {
+      if (index >= tryPaths.length) {
+        reject(new Error('gallery-dl not found in any known path'));
+        return;
+      }
+      execFile(tryPaths[index], args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          tryNext(index + 1);
+        } else {
+          resolve(stdout.trim());
+        }
+      });
+    }
+    tryNext(0);
   });
 }
 
@@ -54,26 +85,15 @@ async function downloadWithYtdlp(url, audio, cookies) {
 }
 
 async function downloadWithGalleryDL(url) {
-  return new Promise((resolve, reject) => {
-    execFile('gallery-dl', ['-d', DL_DIR, url], {
-      timeout: config.DL_TIMEOUT_S * 1000,
-      maxBuffer: 16 * 1024 * 1024
-    }, (err, stdout, stderr) => {
-      if (err) {
-        reject(new Error((stderr || err.message).trim()));
-        return;
-      }
-      const filePath = stdout.trim().replace(/^#\s*/, '');
-      if (!filePath || !fs.existsSync(filePath)) {
-        reject(new Error('file gallery-dl tidak ditemukan'));
-        return;
-      }
-      const ext = path.extname(filePath).slice(1).toLowerCase();
-      const isVideo = ['mp4', 'webm', 'mov', 'mkv', 'm4v'].includes(ext);
-      const mimetype = isVideo ? `video/${ext === 'mkv' ? 'x-matroska' : ext}` : 'image/jpeg';
-      resolve({ file: filePath, mimetype, title: null });
-    });
-  });
+  const out = await runGalleryDl(['-d', DL_DIR, url]);
+  const filePath = out.trim().replace(/^#\s*/, '');
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error('file gallery-dl tidak ditemukan');
+  }
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const isVideo = ['mp4', 'webm', 'mov', 'mkv', 'm4v'].includes(ext);
+  const mimetype = isVideo ? `video/${ext === 'mkv' ? 'x-matroska' : ext}` : 'image/jpeg';
+  return { file: filePath, mimetype, title: null };
 }
 
 async function fetchToFile(url, out) {
