@@ -21,16 +21,9 @@ function formatClassBlock(j, index, prodi) {
   const kodePertemuan = j.id_pertemuan_presensi || '-';
   const prodiName = j.prodi || prodi || 'SISTEM INFORMASI';
 
-  return `*[ ${ruang}, ${time} ]*
-   - Prodi: ${prodiName}
-   - Nama Dosen: ${dosen}
-   - Nama Matkul: ${j.nama_matakuliah}
-   - Judul: ${j.judul || keterangan}
-   - Keterangan: ${keterangan}
-   - Pertemuan: Ke-${j.pertemuan_ke}
-   - Kode Matkul: ${kodeMatkul}
-   - Kode Pertemuan: ${kodePertemuan}
-   - Status Presensi: ${presensiLabel(j)}`;
+  const jenis = j.jenis || '-';
+
+  return `** [ ${ruang}, ${jenis}, ${time} ] **\n   - Prodi: ${prodiName}\n   - Nama Dosen: ${dosen}\n   - Nama Matkul: ${j.nama_matakuliah}\n   - Judul: ${j.judul || keterangan}\n   - Keterangan: ${keterangan}\n   - Pertemuan: Ke-${j.pertemuan_ke}\n   - Kode Matkul: ${kodeMatkul}\n   - Kode Pertemuan: ${kodePertemuan}\n   - Status Presensi: ${presensiLabel(j)}`;
 }
 
 function formatFullJadwal(list, profile, dpa) {
