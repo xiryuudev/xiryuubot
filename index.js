@@ -21,6 +21,7 @@ migrateFromJson();
 const PREFIXES = ['!', '.', '/', '\\'];
 const CMD_DIR = path.resolve('commands');
 const ADMIN_NUMBER_CLEAN = String(config.ADMIN_NUMBER).replace(/[^0-9]/g, '');
+const BOT_NUMBER_CLEAN = String(config.BOT_NUMBER).replace(/[^0-9]/g, '');
 
 const pinoLogger = pino({
   level: 'info',
@@ -293,10 +294,10 @@ async function connectToWhatsApp() {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
+    if (type !== 'notify' && !(type === 'append' && messages.some(m => m.key.fromMe))) return;
 
     for (const msg of messages) {
-      if (!msg.message || msg.key.fromMe) continue;
+      if (!msg.message) continue;
 
       let groupName = null;
       if (msg.key.remoteJid.endsWith('@g.us')) {
@@ -338,7 +339,7 @@ async function connectToWhatsApp() {
         }
       }
 
-      if (!isRegistered(sid) && commandName !== 'daftar') {
+      if (!isRegistered(sid) && commandName !== 'daftar' && !msg.key.fromMe) {
         continue;
       }
 

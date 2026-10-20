@@ -7,6 +7,36 @@ export const dayName = (d) => DAYS[d.getDay()];
 
 export const tanggalIndo = (d) => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 
+const MONTH_MAP = {
+  '1': 0, '01': 0, 'januari': 0, 'january': 0, 'jan': 0,
+  '2': 1, '02': 1, 'februari': 1, 'pebruari': 1, 'february': 1, 'feb': 1,
+  '3': 2, '03': 2, 'maret': 2, 'march': 2, 'mar': 2,
+  '4': 3, '04': 3, 'april': 3, 'apr': 3,
+  '5': 4, '05': 4, 'mei': 4, 'may': 4,
+  '6': 5, '06': 5, 'juni': 5, 'june': 5, 'jun': 5,
+  '7': 6, '07': 6, 'juli': 6, 'july': 6, 'jul': 6,
+  '8': 7, '08': 7, 'agustus': 7, 'august': 7, 'ags': 7, 'agu': 7, 'aug': 7,
+  '9': 8, '09': 8, 'september': 8, 'sep': 8, 'sept': 8,
+  '10': 9, 'oktober': 9, 'october': 9, 'okt': 9, 'oct': 9,
+  '11': 10, 'november': 10, 'nopember': 10, 'nov': 10,
+  '12': 11, 'desember': 11, 'december': 11, 'des': 11, 'dec': 11
+};
+
+export const parseDateInput = (input) => {
+  if (typeof input !== 'string') return null;
+  const parts = input.trim().split(/[\s/-]+/);
+  if (parts.length !== 3) return null;
+  const day = parseInt(parts[0], 10);
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(year) || year < 1000 || year > 9999) return null;
+  const cleanMonth = parts[1].toLowerCase();
+  if (!(cleanMonth in MONTH_MAP)) return null;
+  const month = MONTH_MAP[cleanMonth];
+  const d = new Date(year, month, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
+  return d;
+};
+
 export const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export const keyOfDate = (iso) => dateKey(new Date(`${iso}T00:00:00`));

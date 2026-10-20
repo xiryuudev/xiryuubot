@@ -151,3 +151,4 @@ auth_info_baileys/
 # Media downloader output & session cookies (contains IG sessionid — never commit)
 downloads/
 cookies.txt
+cookies/

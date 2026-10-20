@@ -54,7 +54,23 @@ export function saveTasks(tasks) {
     db.prepare('DELETE FROM tasks').run();
     const stmt = db.prepare('INSERT INTO tasks (id, date, course, type, title, meeting, lecturer, has_task, task, link, deadline, note, created_at, has_document, prodi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const t of list) {
-      stmt.run(t.id, t.date ?? '—', t.course ?? '—', t.type ?? '—', t.title ?? '—', t.meeting ?? '—', t.lecturer ?? '—', t.hasTask ? 1 : 0, t.task ?? 'Tidak ada tugas', t.link ?? '', t.deadline ?? '—', t.note ?? '', t.createdAt ?? new Date().toISOString(), t.hasDocument ? 1 : 0, t.prodi ?? 'SI');
+      stmt.run(
+        t.id,
+        t.date ?? '—',
+        t.course ?? '—',
+        t.type ?? '—',
+        t.title ?? '—',
+        t.meeting ?? '—',
+        t.lecturer ?? '—',
+        (t.hasTask ?? t.has_task) ? 1 : 0,
+        t.task ?? 'Tidak ada tugas',
+        t.link ?? '',
+        t.deadline ?? '—',
+        t.note ?? '',
+        t.createdAt ?? t.created_at ?? new Date().toISOString(),
+        (t.hasDocument ?? t.has_document) ? 1 : 0,
+        t.prodi ?? 'SI'
+      );
     }
   });
   insert(tasks);

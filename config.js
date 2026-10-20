@@ -13,7 +13,7 @@ export default {
   UA: process.env.UA || 'Mozilla/5.0',
   DL_MAX_MB: Number(process.env.DL_MAX_MB) || 100,
   DL_TIMEOUT_S: Number(process.env.DL_TIMEOUT_S) || 300,
-  DL_COOKIES: process.env.DL_COOKIES || 'cookies.txt',
+  DL_COOKIES: process.env.DL_COOKIES || 'cookies/cookies.txt',
   DL_PROXY: process.env.DL_PROXY || '',
   TIKWM_API: process.env.TIKWM_API || 'https://www.tikwm.com/api/',
   IG_USERNAME: process.env.IG_USERNAME || '',

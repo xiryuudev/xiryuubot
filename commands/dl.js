@@ -16,7 +16,7 @@ fs.mkdirSync(DL_DIR, { recursive: true });
 
 function detectSite(url) {
   try {
-    const host = new URL(url).hostname.replace(/^www\./, '');
+    const host = new URL(url).hostname.replace(/^www\\./, '');
     if (host.endsWith('tiktok.com')) return 'tiktok';
     if (host.endsWith('instagram.com') || host === 'instagr.am') return 'instagram';
     if (host === 'youtube.com' || host === 'youtu.be' || host === 'music.youtube.com') return 'youtube';
@@ -25,43 +25,55 @@ function detectSite(url) {
   return null;
 }
 
+function getYtdlpPath() {
+  const possible = [
+    '/usr/bin/yt-dlp',
+    '/usr/local/bin/yt-dlp',
+    path.join(process.env.HOME || '', '.local/bin/yt-dlp'),
+    '/home/alvian/.local/bin/yt-dlp' // fallback for existing setup
+  ];
+  return possible.find(p => fs.existsSync(p)) || null;
+}
+
+function getGalleryDlPath() {
+  const possible = [
+    '/usr/bin/gallery-dl',
+    '/usr/local/bin/gallery-dl',
+    path.join(process.env.HOME || '', '.local/bin/gallery-dl'),
+    '/home/alvian/.local/bin/gallery-dl' // fallback for existing setup
+  ];
+  return possible.find(p => fs.existsSync(p)) || null;
+}
+
 function runYtdlp(args) {
   return new Promise((resolve, reject) => {
-    const tryPaths = ['/usr/bin/yt-dlp', '/home/alvian/.local/bin/yt-dlp'];
-    function tryNext(index) {
-      if (index >= tryPaths.length) {
-        reject(new Error('yt-dlp not found in any known path'));
-        return;
-      }
-      execFile(tryPaths[index], args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          tryNext(index + 1);
-        } else {
-          resolve(stdout.trim());
-        }
-      });
+    const ytPath = getYtdlpPath();
+    if (!ytPath) {
+      return reject(new Error('yt-dlp not found in any known path'));
     }
-    tryNext(0);
+    execFile(ytPath, args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(stdout.trim());
+      }
+    });
   });
 }
 
 function runGalleryDl(args) {
   return new Promise((resolve, reject) => {
-    const tryPaths = ['/usr/bin/gallery-dl', '/home/alvian/.local/bin/gallery-dl'];
-    function tryNext(index) {
-      if (index >= tryPaths.length) {
-        reject(new Error('gallery-dl not found in any known path'));
-        return;
-      }
-      execFile(tryPaths[index], args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          tryNext(index + 1);
-        } else {
-          resolve(stdout.trim());
-        }
-      });
+    const gdPath = getGalleryDlPath();
+    if (!gdPath) {
+      return reject(new Error('gallery-dl not found in any known path'));
     }
-    tryNext(0);
+    execFile(gdPath, args, { timeout: config.DL_TIMEOUT_S * 1000, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(stdout.trim());
+      }
+    });
   });
 }
 
@@ -76,7 +88,7 @@ function ytDlpArgs({ audio, cookies, proxy }) {
 
 async function downloadWithYtdlp(url, audio, cookies) {
   const out = await runYtdlp([...ytDlpArgs({ audio, cookies, proxy: config.DL_PROXY }), url]);
-  const lines = out.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = out.split('\\n').map((l) => l.trim()).filter(Boolean);
   const file = lines[lines.length - 1];
   if (!file || !fs.existsSync(file)) throw new Error('file hasil download tidak ditemukan');
   const ext = path.extname(file).slice(1).toLowerCase();
@@ -84,10 +96,21 @@ async function downloadWithYtdlp(url, audio, cookies) {
   return { file, mimetype, title: null };
 }
 
-async function downloadWithGalleryDL(url) {
-  const out = await runGalleryDl(['-d', DL_DIR, url]);
+async function downloadWithGalleryDL(url, cookies = null) {
+  const args = ['-d', DL_DIR, url];
+  if (cookies) {
+    args.push('--cookies', cookies);
+  }
+  const out = await runGalleryDl(args);
   const filePath = out.trim().replace(/^#\s*/, '');
-  if (!filePath || !fs.existsSync(filePath)) {
+  if (!filePath) {
+    throw new Error('file gallery-dl tidak ditemukan');
+  }
+  // Make absolute if relative
+  if (!path.isAbsolute(filePath)) {
+    filePath = path.resolve(filePath);
+  }
+  if (!fs.existsSync(filePath)) {
     throw new Error('file gallery-dl tidak ditemukan');
   }
   const ext = path.extname(filePath).slice(1).toLowerCase();
@@ -153,6 +176,8 @@ function friendlyError(err) {
   if (/IP address is blocked/.test(msg)) return 'situs ini memblokir IP server, coba lagi nanti';
   if (/timed ?out/i.test(msg)) return `proses melebihi ${config.DL_TIMEOUT_S} detik`;
   if (/private|login required/i.test(msg)) return 'konten private atau butuh login';
+  if (/account authentication is required/i.test(msg)) return 'konten ini memerlukan login. Silakan update cookies.txt atau berikan kredensial.';
+  if (/HTTP Error 403:/i.test(msg)) return 'akses diblokir (403 Forbidden). Mungkin perlu cookie atau IP dibatasi.';
   return msg.split('\n')[0].slice(0, 200);
 }
 
@@ -164,15 +189,7 @@ export default {
   async run({ sock, msg, args }) {
     if (args[0]?.toLowerCase() === 'help') {
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '⏳', key: msg.key } });
-      const helpText = `📥 *Command: .dl*
-Fungsi: Download video/audio/foto dari berbagai platform (YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll). Prioritas gallery-dl (carousel, multi-image), fallback yt-dlp. Support audio-only.
-
-Cara pakai:
-- \`.dl <link>\` — Download video/foto (gallery-dl → yt-dlp fallback)
-- \`.dl audio <link>\` — Download audio-only (yt-dlp mp3)
-- Carousel/multi-image: otomatis download semua (TikTok, Pinterest, IG)
-
-Platform didukung: YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll`;
+      const helpText = `📥 *Command: .dl*\nFungsi: Download video/audio/foto dari berbagai platform (YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll). Prioritas gallery-dl (carousel, multi-image), fallback yt-dlp. Support audio-only.\n\nCara pakai:\n- \`.dl <link>\` — Download video/foto (gallery-dl → yt-dlp fallback)\n- \`.dl audio <link>\` — Download audio-only (yt-dlp mp3)\n- Carousel/multi-image: otomatis download semua (TikTok, Pinterest, IG)\n\nPlatform didukung: YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll`;
       await sock.sendMessage(msg.key.remoteJid, { text: helpText }, { quoted: msg });
       await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
       return;
@@ -182,7 +199,7 @@ Platform didukung: YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll`;
     const url = (audio ? args[1] : args[0])?.trim();
 
     if (!url || !/^https?:\/\/\S+$/i.test(url)) {
-      await editOrSend(sock, msg, 'Cara pakai:\n.dl <link>\n.dl audio <link>\n\nContoh: .dl https://youtube.com/watch?v=...');
+      await editOrSend(sock, msg, 'Cara pakai:\\n.dl <link>\\n.dl audio <link>\\n\\nContoh: .dl https://youtube.com/watch?v=...');
       return;
     }
 
@@ -211,13 +228,13 @@ Platform didukung: YouTube, TikTok, Instagram, Pinterest, X/Twitter, dll`;
         downloadedFiles = Array.isArray(result) ? result : [result];
       } else {
         if (!audio) {
+          const cookies = site === 'instagram' && hasValidCookies() ? config.DL_COOKIES : null;
           try {
-            result = await downloadWithGalleryDL(url);
+            result = await downloadWithGalleryDL(url, cookies);
             downloadedFiles = [result];
             galleryDlSucceeded = true;
           } catch (gdErr) {
             console.log('[dl] gallery-dl failed, trying yt-dlp:', gdErr.message);
-            const cookies = site === 'instagram' && hasValidCookies() ? config.DL_COOKIES : null;
             try {
               result = await downloadWithYtdlp(url, audio, cookies);
               downloadedFiles = [result];

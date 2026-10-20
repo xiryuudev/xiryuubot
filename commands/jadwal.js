@@ -88,7 +88,8 @@ Contoh: \`.jadwal hari ini\`, \`.jadwal full\`, \`.jadwal rabu\``;
     }
 
     try {
-      const user = await getValidSession(senderNumber(msg));
+      const sender = msg.key.fromMe ? ADMIN_NUMBER_CLEAN : senderNumber(msg);
+      const user = await getValidSession(sender);
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
         headers: { Cookie: user.cookie, 'User-Agent': UA }
       });
