@@ -85,7 +85,10 @@ export function parseAndAdd(text, hasDoc = false, prodi = null) {
   const tasks = loadTasks();
 
   const existingIndex = tasks.findIndex(
-    (item) => item.course.toLowerCase() === parsed.course.toLowerCase() && item.title.toLowerCase() === parsed.title.toLowerCase()
+    (item) =>
+      item.course.toLowerCase() === parsed.course.toLowerCase() &&
+      item.title.toLowerCase() === parsed.title.toLowerCase() &&
+      item.task.toLowerCase() === parsed.task.toLowerCase()
   );
 
   if (existingIndex !== -1) {
