@@ -128,7 +128,7 @@ export async function getValidSession(whatsappNumber) {
 
   try {
     const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
-      headers: { Cookie: user.cookie, 'User-Agent': UA },
+      headers: { Cookie: user.cookie, 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest' },
       validateStatus: (s) => s === 200
     });
     if (data?.status === 'success') {

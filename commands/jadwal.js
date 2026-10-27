@@ -21,7 +21,7 @@ function formatClassBlock(j, index, prodi) {
   const kodePertemuan = j.id_pertemuan_presensi || '-';
   const prodiName = j.prodi || prodi || 'SISTEM INFORMASI';
 
-  const jenis = j.jenis || '-';
+  const jenis = j.tipe_pertemuan_presensi === 'P' ? 'Praktikum' : 'Teori';
 
   return `** [ ${ruang}, ${jenis}, ${time} ] **\n   - Prodi: ${prodiName}\n   - Nama Dosen: ${dosen}\n   - Nama Matkul: ${j.nama_matakuliah}\n   - Judul: ${j.judul || keterangan}\n   - Keterangan: ${keterangan}\n   - Pertemuan: Ke-${j.pertemuan_ke}\n   - Kode Matkul: ${kodeMatkul}\n   - Kode Pertemuan: ${kodePertemuan}\n   - Status Presensi: ${presensiLabel(j)}`;
 }
@@ -91,7 +91,7 @@ Contoh: \`.jadwal hari ini\`, \`.jadwal full\`, \`.jadwal rabu\``;
       const sender = msg.key.fromMe ? ADMIN_NUMBER_CLEAN : senderNumber(msg);
       const user = await getValidSession(sender);
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
-        headers: { Cookie: user.cookie, 'User-Agent': UA }
+        headers: { Cookie: user.cookie, 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest' }
       });
       if (data.status !== 'success') throw new Error('Gagal ambil jadwal');
 

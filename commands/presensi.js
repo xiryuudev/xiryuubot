@@ -51,7 +51,7 @@ export default {
       try {
       const user = await getValidSession(senderNumber(msg));
       const { data } = await axios.get(`${BASE_URL}/${user.sessionHash}/api/perkuliahan/get_jadwal_kuliah_mahasiswa/${user.nim}`, {
-        headers: { Cookie: user.cookie, 'User-Agent': UA }
+        headers: { Cookie: user.cookie, 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest' }
       });
       if (data.status !== 'success') throw new Error('Gagal ambil jadwal');
       const all = (data.data || []).sort((a, b) => a.jam_awal.localeCompare(b.jam_akhir));
