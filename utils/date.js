@@ -41,14 +41,19 @@ export const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth(
 
 export const keyOfDate = (iso) => dateKey(new Date(`${iso}T00:00:00`));
 
-export const filterByDate = (list, date, when = 'hari ini') => {
+export const filterByDate = (list, date, when = 'hari ini', dateField = 'tanggal_pertemuan_presensi') => {
   const want = when.toLowerCase();
   if (want === 'full') return list;
+
+  if (want === 'ujian') {
+    const key = dateKey(date);
+    return list.filter((j) => keyOfDate(j[dateField]) === key);
+  }
 
   if (['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'].includes(want)) {
     const targetDay = DAYS.indexOf(want.charAt(0).toUpperCase() + want.slice(1));
     return list.filter((j) => {
-      const d = new Date(`${j.tanggal_pertemuan_presensi}T00:00:00`);
+      const d = new Date(`${j[dateField]}T00:00:00`);
       return d.getDay() === targetDay;
     });
   }
@@ -57,7 +62,7 @@ export const filterByDate = (list, date, when = 'hari ini') => {
     const tom = new Date(date);
     tom.setDate(tom.getDate() + 1);
     const key = dateKey(tom);
-    return list.filter((j) => keyOfDate(j.tanggal_pertemuan_presensi) === key);
+    return list.filter((j) => keyOfDate(j[dateField]) === key);
   }
 
   if (want === 'minggu ini') {
@@ -68,7 +73,7 @@ export const filterByDate = (list, date, when = 'hari ini') => {
     const startKey = dateKey(start);
     const endKey = dateKey(end);
     return list.filter((j) => {
-      const k = keyOfDate(j.tanggal_pertemuan_presensi);
+      const k = keyOfDate(j[dateField]);
       return k >= startKey && k <= endKey;
     });
   }
@@ -81,13 +86,13 @@ export const filterByDate = (list, date, when = 'hari ini') => {
     const startKey = dateKey(start);
     const endKey = dateKey(end);
     return list.filter((j) => {
-      const k = keyOfDate(j.tanggal_pertemuan_presensi);
+      const k = keyOfDate(j[dateField]);
       return k >= startKey && k <= endKey;
     });
   }
 
   const key = dateKey(date);
-  return list.filter((j) => keyOfDate(j.tanggal_pertemuan_presensi) === key);
+  return list.filter((j) => keyOfDate(j[dateField]) === key);
 };
 
 const chatFmt = new Intl.DateTimeFormat('id-ID', {
